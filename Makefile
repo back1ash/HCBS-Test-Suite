@@ -3,7 +3,7 @@
 all: build/initrd.gz
 
 build/initrd.gz: cgroup_v1 cgroup_v2
-	rm ./build/mnt/root/test_suite
+	rm -f ./build/mnt/root/test_suite
 	ln -s /root/test_suite_v2 ./build/mnt/root/test_suite
 	cd ./build/mnt; find . | cpio -o -H newc | gzip > ../initrd.gz
 
