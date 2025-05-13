@@ -16,15 +16,25 @@ sysinfo = "0.34.2"
 cgroup_v2 = []
 
 [[bin]]
+name = "regression_fair_server"
+path = "src/bin/regression/fair_server.rs"
+[[bin]]
+name = "regression_sched_fifo"
+path = "src/bin/regression/sched_fifo.rs"
+[[bin]]
+name = "regression_sched_deadline"
+path = "src/bin/regression/sched_deadline.rs"
+[[bin]]
+name = "regression_run_all"
+path = "src/bin/regression/run_all.rs"
+
+[[bin]]
 name = "constraints_cgroup_setup"
 path = "src/bin/constraints/cgroup_setup.rs"
 
 [[bin]]
 name = "fair_dl_server_realtime_bw_change"
 path = "src/bin/fair_dl_server/realtime_bw_change.rs"
-[[bin]]
-name = "fair_dl_server_regression"
-path = "src/bin/fair_dl_server/regression.rs"
 
 [[bin]]
 name = "stress_cgroup_make_destroy"

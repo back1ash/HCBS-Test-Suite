@@ -351,6 +351,10 @@ impl MyCgroup {
         })
     }
 
+    pub fn update_runtime(&mut self, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+        __set_cgroup_runtime(&self.name, runtime_us)
+    }
+
     pub fn destroy(mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.__destroy()
     }

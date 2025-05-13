@@ -13,6 +13,8 @@ pub mod prelude {
 }
 
 #[derive(Debug)]
+#[derive(Clone, Copy)]
+#[derive(PartialEq, Eq)]
 pub enum MySchedPolicy {
     OTHER,
     FIFO(i32),
