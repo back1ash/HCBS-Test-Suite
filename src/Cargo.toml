@@ -33,10 +33,6 @@ name = "constraints_cgroup_setup"
 path = "src/bin/constraints/cgroup_setup.rs"
 
 [[bin]]
-name = "fair_dl_server_realtime_bw_change"
-path = "src/bin/fair_dl_server/realtime_bw_change.rs"
-
-[[bin]]
 name = "stress_cgroup_make_destroy"
 path = "src/bin/stress/cgroup_make_destroy.rs"
 [[bin]]
@@ -65,3 +61,6 @@ path = "src/bin/time/run_all.rs"
 [[bin]]
 name = "tools_mount_cgroup_fs"
 path = "src/bin/tools/mount_cgroup_fs.rs"
+[[bin]]
+name = "tools_realtime_bw_change"
+path = "src/bin/tools/realtime_bw_change.rs"
