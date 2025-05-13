@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Started Yes process on PID {}\nPress Ctrl+C to stop", proc.id());
     }
 
-    wait_loop(myargs.max_time)?;
+    wait_loop(myargs.max_time, None)?;
 
     let total_usage = get_process_total_cpu_usage(proc.id())?;
     if !is_batch_test() {

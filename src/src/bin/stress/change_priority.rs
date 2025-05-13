@@ -28,5 +28,5 @@ fn parse_args() -> Result<MyArgs, Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let my_args = parse_args()?;
 
-    my_test(my_args)
+    my_test(my_args, None)
 }

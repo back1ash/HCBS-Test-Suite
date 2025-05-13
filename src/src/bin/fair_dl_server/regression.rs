@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Press Ctrl+C to stop");
     }
 
-    wait_loop(args.max_time)?;
+    wait_loop(args.max_time, None)?;
 
     let mut total_usage = 0f32;
     for proc in non_fifo_processes.iter() {

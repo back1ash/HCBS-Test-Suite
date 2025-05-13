@@ -10,11 +10,11 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
-pub fn my_test(args: MyArgs, rng: Option<&mut dyn rand::RngCore>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn my_test(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> {
     let mut thread_rng = rand::rng();
     let rng = rng.unwrap_or_else(|| &mut thread_rng);
 
-    wait_loop_periodic_fn(0f32, args.max_time,
+    wait_loop_periodic_fn(0f32, args.max_time, ctrlc_flag,
         || {
             let runtime_ms = rng.random_range(args.runtime_min_ms ..= args.runtime_max_ms);
             let cgroup = MyCgroup::new(&args.cgroup, runtime_ms * 1000, args.period_ms * 1000, true)?;

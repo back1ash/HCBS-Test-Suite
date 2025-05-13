@@ -8,7 +8,7 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
-pub fn my_test(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> { 
+pub fn my_test(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> { 
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
@@ -33,7 +33,7 @@ pub fn my_test(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
         println!("Started Yes processes\nPress Ctrl+C to stop");
     }
 
-    wait_loop_periodic_fn(args.change_period, args.max_time, update_fn)?;
+    wait_loop_periodic_fn(args.change_period, args.max_time, ctrlc_flag, update_fn)?;
 
     proc1.kill()?;
     proc2.kill()?;

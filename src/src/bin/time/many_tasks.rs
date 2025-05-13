@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Started Yes processes\nPress Ctrl+C to stop");
     }
 
-    wait_loop(myargs.max_time)?;
+    wait_loop(myargs.max_time, None)?;
 
     let total_usage = 
         procs.iter()
