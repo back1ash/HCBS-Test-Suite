@@ -20,5 +20,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: initrd
-          path: ./build/initrd.gz
+          name: core
+          path: ./build/core.gz
