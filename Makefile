@@ -2,11 +2,25 @@
 
 all: build/core.gz
 
-build/core.gz: build/initrd.gz build/busybox.gz
+build/core.gz: build/initrd.gz build/busybox.gz build/periodic.gz
 	rm -f build/core.gz
 	touch build/core.gz
 	cat ./build/busybox.gz >> ./build/core.gz
 	cat ./build/initrd.gz >> ./build/core.gz
+	cat ./build/periodic.gz >> ./build/core.gz
+
+build/periodic.gz: build/.keep
+	mkdir -p ./build/periodic-task/bin
+	if [ ! -d ./build/PeriodicTask ]; then\
+		git init ./build/PeriodicTask;\
+		git -C ./build/PeriodicTask fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git 8b1839d2c2207cbb7e80f25e9d6773bbeab6630e;\
+		git -C ./build/PeriodicTask checkout FETCH_HEAD;\
+	fi
+	make -C ./build/PeriodicTask periodic_task
+	make -C ./build/PeriodicTask periodic_thread
+	cp ./build/PeriodicTask/periodic_task ./build/periodic-task/bin/periodic_task
+	cp ./build/PeriodicTask/periodic_thread ./build/periodic-task/bin/periodic_thread
+	cd ./build/periodic-task; find . | cpio -o -H newc | gzip > ../periodic.gz
 
 build/busybox.gz: build/.keep
 	mkdir -p ./build/busybox

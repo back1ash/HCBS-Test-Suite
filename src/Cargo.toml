@@ -59,6 +59,10 @@ name = "time_run_all"
 path = "src/bin/time/run_all.rs"
 
 [[bin]]
+name = "taskset_all"
+path = "src/bin/taskset/all.rs"
+
+[[bin]]
 name = "tools_mount_cgroup_fs"
 path = "src/bin/tools/mount_cgroup_fs.rs"
 [[bin]]

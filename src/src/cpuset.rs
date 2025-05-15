@@ -20,6 +20,23 @@ impl CpuSet {
     pub fn empty() -> CpuSet {
         CpuSet { cpus: Vec::with_capacity(0) }
     }
+
+    pub fn all() -> Result<CpuSet, Box<dyn std::error::Error>> {
+        let online_cpus = std::fs::read_to_string("/sys/devices/system/cpu/online")?;
+        CpuSet::from_str(&online_cpus)
+    }
+
+    pub fn any_subset(num_cpus: u64) -> Result<CpuSet, Box<dyn std::error::Error>> {
+        let all = CpuSet::all()?;
+
+        if num_cpus as usize > all.cpus.len() {
+            Err(format!("Requesting more CPUs ({num_cpus}) than available ones ({0})", all.cpus.len()))?;
+        }
+
+        Ok(CpuSet {
+            cpus: all.cpus.into_iter().take(num_cpus as usize).collect()
+        })
+    }
 }
 
 impl FromStr for CpuSet {
@@ -33,16 +50,13 @@ impl FromStr for CpuSet {
         use nom::character::complete::*;
         use nom::combinator::*;
 
-        fn single_parser(input: &str) -> nom::IResult<&str, u32, ()> {
-            map_res(digit1::<&str, ()>, |s: &str| s.parse::<u32>()).parse(input)
-        }
-
-        let single_parser_pair = map(single_parser, |cpu| (cpu, cpu) );
+        let single_parser = || map_res(digit1::<&str, ()>, |s: &str| s.parse::<u32>());
+        let single_parser_pair = map(single_parser(), |cpu| (cpu, cpu) );
         let range_parser = map_res(
             (
-                single_parser,
+                single_parser(),
                 tag("-"),
-                single_parser
+                single_parser()
             ),
             |(min, _, max)| {
                 if min > max {
@@ -57,7 +71,7 @@ impl FromStr for CpuSet {
         let mut parser = map(
             separated_list1(
                 separator_parser,
-                alt((single_parser_pair, range_parser))
+                alt((range_parser, single_parser_pair))
             ),
             |pairs: Vec<(u32, u32)>| {
                 let mut out: Vec<u32> = Vec::new();
