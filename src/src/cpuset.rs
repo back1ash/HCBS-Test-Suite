@@ -23,7 +23,9 @@ impl CpuSet {
 
     pub fn all() -> Result<CpuSet, Box<dyn std::error::Error>> {
         let online_cpus = std::fs::read_to_string("/sys/devices/system/cpu/online")?;
-        CpuSet::from_str(&online_cpus)
+        let cpuset = CpuSet::from_str(&online_cpus)?;
+
+        Ok(cpuset)
     }
 
     pub fn any_subset(num_cpus: u64) -> Result<CpuSet, Box<dyn std::error::Error>> {
@@ -40,7 +42,7 @@ impl CpuSet {
 }
 
 impl FromStr for CpuSet {
-    type Err = Box<dyn std::error::Error>;
+    type Err = String;
 
     fn from_str<'a>(s: &'a str) -> Result<Self, Self::Err> {
         use nom::Parser;
@@ -86,7 +88,7 @@ impl FromStr for CpuSet {
         );
 
         Ok(CpuSet {
-            cpus: parser.parse(s)?.1,
+            cpus: parser.parse(s).map_err(|err| format!("{err}"))?.1,
         })
     }
 }

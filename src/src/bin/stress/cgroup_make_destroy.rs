@@ -1,34 +1,57 @@
-#![feature(iterator_try_collect)]
+use hcbs_test_suite::prelude::*;
+use std::thread;
+use rand::Rng;
 
-use hcbs_test_suite::tests::stress::cgroup_make_destroy::*;
+#[derive(clap::Parser, Debug)]
+pub struct MyArgs {
+    /// cgroup's name
+    #[arg(short = 'c', long = "cgroup", default_value = "g0", value_name = "name")]
+    pub cgroup: String,
 
-fn print_usage() {
-    let arg0 = std::env::args().nth(0).unwrap();
-    println!("Usage: {arg0} <cgroup> <runtime min ms> <runtime max ms> <period ms> [maxtime]");
-    println!("Constraints: runtime max <= period; runtime min <= runtime max");
+    /// cgroup's runtime minimum time
+    #[arg(short = 'r', long = "runtime-min", value_name = "ms: u64")]
+    pub runtime_min_ms: u64,
+
+    /// cgroup's runtime maximum time
+    #[arg(short = 'R', long = "runtime-max", value_name = "ms: u64")]
+    pub runtime_max_ms: u64,
+
+    /// cgroup's period
+    #[arg(short = 'p', long = "period", value_name = "ms: u64")]
+    pub period_ms: u64,
+
+    /// max running time
+    #[arg(short = 't', long = "max-time", value_name = "sec: u64")]
+    pub max_time: Option<u64>,
 }
 
-fn parse_args() -> Result<MyArgs, Box<dyn std::error::Error>> {
-    if std::env::args().len() < 5 {
-        print_usage();
-        return Err(format!("Invalid arguments..."))?;
-    }
+pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut thread_rng = rand::rng();
+    let rng = rng.unwrap_or_else(|| &mut thread_rng);
 
-    let args: Vec<_> = std::env::args().collect();
+    wait_loop_periodic_fn(0f32, args.max_time, ctrlc_flag,
+        || {
+            let runtime_ms = rng.random_range(args.runtime_min_ms ..= args.runtime_max_ms);
+            let cgroup = MyCgroup::new(&args.cgroup, runtime_ms * 1000, args.period_ms * 1000, true)?;
+            migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
+            chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
-    let myargs = MyArgs {
-        cgroup: args[1].clone(),
-        runtime_min_ms: args[2].parse()?,
-        runtime_max_ms: args[3].parse()?,
-        period_ms: args[4].parse()?,
-        max_time: args.get(5).map(|x| x.parse()).transpose()?,
-    };
+            let num_procs = rng.random_range(1..=5);
+            let procs: Vec<_> = (0..num_procs)
+                .map(|_| run_yes()).try_collect()?;
 
-    Ok(myargs)
-}
+            thread::sleep(std::time::Duration::from_secs_f32(rng.random_range(0.5f32..=2f32)));
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let my_args = parse_args()?;
+            procs.into_iter()
+                .try_for_each(|mut proc| proc.kill())?;
 
-    my_test(my_args, None, None)
+            chrt(std::process::id(), MySchedPolicy::OTHER)?;
+            migrate_task_to_cgroup(".", std::process::id())?;
+            cgroup.destroy()?;
+
+            Ok(())
+        }
+    )?;
+
+    Ok(())
 }

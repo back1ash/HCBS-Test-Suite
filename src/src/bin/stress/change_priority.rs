@@ -1,32 +1,60 @@
-use hcbs_test_suite::tests::stress::change_priority::*;
+use hcbs_test_suite::prelude::*;
 
-fn print_usage() {
-    let arg0 = std::env::args().nth(0).unwrap();
-    println!("Usage: {arg0} <cgroup> <runtime ms> <period ms> <change period sec:f32> [maxtime]");
-    println!("Constraints: runtime <= period");
+#[derive(clap::Parser, Debug)]
+pub struct MyArgs {
+    /// cgroup's name
+    #[arg(short = 'c', long = "cgroup", default_value = "g0", value_name = "name")]
+    pub cgroup: String,
+
+    /// cgroup's runtime
+    #[arg(short = 'r', long = "runtime", value_name = "ms: u64")]
+    pub runtime_ms: u64,
+
+    /// cgroup's period
+    #[arg(short = 'p', long = "period", value_name = "ms: u64")]
+    pub period_ms: u64,
+
+    /// priority change period
+    #[arg(short = 'P', long = "change-period", value_name = "secs: f32")]
+    pub change_period: f32,
+
+    /// max running time
+    #[arg(short = 't', long = "max-time", value_name = "sec: u64")]
+    pub max_time: Option<u64>,
 }
 
-fn parse_args() -> Result<MyArgs, Box<dyn std::error::Error>> {
-    if std::env::args().len() < 5 {
-        print_usage();
-        return Err(format!("Invalid arguments..."))?;
-    }
+pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> { 
+    let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
+    migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
+    chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
-    let args: Vec<_> = std::env::args().collect();
+    let (mut proc1, mut proc2) = (run_yes()?, run_yes()?);
+    let mut state = 60;
+    chrt(proc1.id(), MySchedPolicy::RR(state))?;
+    chrt(proc2.id(), MySchedPolicy::RR(50))?;
 
-    let myargs = MyArgs {
-        cgroup: args[1].clone(),
-        runtime_ms: args[2].parse()?,
-        period_ms: args[3].parse()?,
-        change_period: args[4].parse()?,
-        max_time: args.get(5).map(|x| x.parse()).transpose()?,
+    let update_fn = || {
+        if state == 60 {
+            state = 40;
+        } else {
+            state = 60;
+        }
+
+        chrt(proc1.id(), MySchedPolicy::RR(state))?;
+        Ok(())
     };
 
-    Ok(myargs)
-}
+    if !is_batch_test() {
+        println!("Started Yes processes\nPress Ctrl+C to stop");
+    }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let my_args = parse_args()?;
+    wait_loop_periodic_fn(args.change_period, args.max_time, ctrlc_flag, update_fn)?;
 
-    my_test(my_args, None)
+    proc1.kill()?;
+    proc2.kill()?;
+    chrt(std::process::id(), MySchedPolicy::OTHER)?;
+    migrate_task_to_cgroup(".", std::process::id())?;
+    cgroup.destroy()?;
+
+    Ok(())
 }

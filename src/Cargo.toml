@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+clap = { version = "4.5.39", features = ["derive"] }
 ctrlc = "3.4.6"
 nom = "8.0.0"
 num_cpus = "1.16.0"
@@ -33,17 +34,8 @@ name = "constraints_cgroup_setup"
 path = "src/bin/constraints/cgroup_setup.rs"
 
 [[bin]]
-name = "stress_cgroup_make_destroy"
-path = "src/bin/stress/cgroup_make_destroy.rs"
-[[bin]]
-name = "stress_change_pinning"
-path = "src/bin/stress/change_pinning.rs"
-[[bin]]
-name = "stress_change_priority"
-path = "src/bin/stress/change_priority.rs"
-[[bin]]
-name = "stress_run_all"
-path = "src/bin/stress/run_all.rs"
+name = "stress"
+path = "src/bin/stress/main.rs"
 
 [[bin]]
 name = "time_many_tasks"
