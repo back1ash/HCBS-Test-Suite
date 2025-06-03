@@ -38,17 +38,8 @@ name = "stress"
 path = "src/bin/stress/main.rs"
 
 [[bin]]
-name = "time_many_tasks"
-path = "src/bin/time/many_tasks.rs"
-[[bin]]
-name = "time_one_task"
-path = "src/bin/time/one_task.rs"
-[[bin]]
-name = "time_pin_task"
-path = "src/bin/time/pin_task.rs"
-[[bin]]
-name = "time_run_all"
-path = "src/bin/time/run_all.rs"
+name = "time"
+path = "src/bin/time/main.rs"
 
 [[bin]]
 name = "taskset_all"

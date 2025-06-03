@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use hcbs_test_suite::prelude::*;
 
 #[derive(clap::Parser, Debug)]
@@ -21,11 +19,11 @@ pub struct MyArgs {
     pub change_period: f32,
 
     /// first cpu set
-    #[arg(short = 'c', long = "cpu-set1", value_parser = CpuSet::from_str)]
+    #[arg(short = 'c', long = "cpu-set1", value_parser = <CpuSet as std::str::FromStr>::from_str)]
     pub cpu_set1: CpuSet,
 
     /// second cpu set
-    #[arg(short = 'C', long = "cpu-set2", value_parser = CpuSet::from_str)]
+    #[arg(short = 'C', long = "cpu-set2", value_parser = <CpuSet as std::str::FromStr>::from_str)]
     pub cpu_set2: CpuSet,
 
     /// max running time

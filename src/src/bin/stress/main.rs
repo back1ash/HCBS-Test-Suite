@@ -1,7 +1,5 @@
 #![feature(iterator_try_collect)]
 
-use clap::Parser;
-
 mod cgroup_make_destroy;
 mod change_cgroup_runtime;
 mod change_pinning;
@@ -12,14 +10,7 @@ mod switch_class;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
-pub struct Command {
-    #[command(subcommand)]
-    pub subcommand: Subcommand,
-}
-
-#[derive(clap::Parser, Debug)]
-#[command(about, long_about = None)]
-pub enum Subcommand {
+pub enum Command {
     /// Run all tests
     /// 
     /// This command runs all the listed tests. It generates pseudo-random
@@ -88,9 +79,9 @@ pub enum Subcommand {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Subcommand::parse();
+    let args = <Command as clap::Parser>::parse();
 
-    use Subcommand::*;
+    use Command::*;
 
     match args {
         All(args) => run_all::main(args, None),
