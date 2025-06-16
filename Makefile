@@ -2,12 +2,13 @@
 
 all: build/core.gz
 
-build/core.gz: build/initrd.gz build/busybox.gz build/periodic.gz
+build/core.gz: build/initrd.gz build/busybox.gz build/periodic.gz build/tasksets.gz
 	rm -f build/core.gz
 	touch build/core.gz
 	cat ./build/busybox.gz >> ./build/core.gz
 	cat ./build/initrd.gz >> ./build/core.gz
 	cat ./build/periodic.gz >> ./build/core.gz
+	cat ./build/tasksets.gz >> ./build/core.gz
 
 build/periodic.gz: build/.keep
 	mkdir -p ./build/periodic-task/bin
@@ -32,6 +33,12 @@ build/busybox.gz: build/.keep
 		sed -i '967 cCONFIG_TC=n' ./build/BuildCore/Configs/config-busybox-3;\
 	fi
 	cd ./build/busybox; sh $(shell pwd)/build/BuildCore/buildcore.sh $(shell pwd)/build/busybox.gz
+
+build/tasksets.gz: build/.keep
+	rm -rf ./build/tasksets/root/tasksets
+	# get CARTS (?)
+	cd taskset_gen; python -B taskgen.py
+	cd ./build/tasksets; find . | cpio -o -H newc | gzip > ../tasksets.gz
 
 build/initrd.gz: cgroup_v1 cgroup_v2
 	rm -f ./build/mnt/root/test_suite
