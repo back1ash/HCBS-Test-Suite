@@ -167,6 +167,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "flagset"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7ac824320a75a52197e8f2d787f6a38b6718bb6897a35142d749af3c0e8f4fe"
+
+[[package]]
 name = "getrandom"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -184,9 +190,11 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "ctrlc",
+ "libc",
  "nom",
  "num_cpus",
  "rand",
+ "sched_deadline",
  "scheduler",
  "sysconf",
  "sysinfo",
@@ -222,9 +230,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.172"
+version = "0.2.173"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
+checksum = "d8cfeafaffdbc32176b64fb251369d52ea9f0a8fbc6f8759edffef7b525d64bb"
 
 [[package]]
 name = "memchr"
@@ -347,6 +355,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
  "getrandom",
+]
+
+[[package]]
+name = "sched_deadline"
+version = "0.2.1"
+source = "git+https://github.com/stephan-cr/sched_deadline-rs#e9db4ca3a027c64b5ef842de9aba992efad58e3c"
+dependencies = [
+ "flagset",
+ "libc",
 ]
 
 [[package]]

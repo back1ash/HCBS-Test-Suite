@@ -6,28 +6,21 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }
 ctrlc = "3.4.6"
+libc = "0.2.173"
 nom = "8.0.0"
 num_cpus = "1.16.0"
 rand = "0.9.1"
 scheduler = "0.1.3"
 sysconf = "0.3.4"
 sysinfo = "0.34.2"
+sched_deadline = { git = "https://github.com/stephan-cr/sched_deadline-rs" }
 
 [features]
 cgroup_v2 = []
 
 [[bin]]
-name = "regression_fair_server"
-path = "src/bin/regression/fair_server.rs"
-[[bin]]
-name = "regression_sched_fifo"
-path = "src/bin/regression/sched_fifo.rs"
-[[bin]]
-name = "regression_sched_deadline"
-path = "src/bin/regression/sched_deadline.rs"
-[[bin]]
-name = "regression_run_all"
-path = "src/bin/regression/run_all.rs"
+name = "regression"
+path = "src/bin/regression/main.rs"
 
 [[bin]]
 name = "constraints_cgroup_setup"
