@@ -39,6 +39,7 @@ pub enum Command {
     /// to the cgroup.
     /// 
     /// Constraints: runtime <= period
+    #[command(name = "many", verbatim_doc_comment)]
     ManyTasks(many_tasks::MyArgs),
 }
 
