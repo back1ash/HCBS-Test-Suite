@@ -48,20 +48,22 @@ build/.keep:
 
 cgroup_v2: build/mnt/.keep build/.keep
 	mkdir -p ./build/test_suite/v2
-	cd src; RUSTFLAGS='-C target-feature=+crt-static' \
+	cd test_suite_rs; RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo build --release --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	RUSTFLAGS='-C target-feature=+crt-static' \
-		cargo install --path ./src --root ./build/test_suite/v2 --no-track --frozen --features cgroup_v2 --target x86_64-unknown-linux-gnu
+		cargo install --path ./test_suite_rs --root ./build/test_suite/v2 \
+		--no-track --frozen --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	mkdir -p ./build/mnt/root/test_suite_v2
 	cp -r ./build/test_suite/v2/bin/* ./build/mnt/root/test_suite_v2/
 	rm -rf ./build/test_suite/v2
 
 cgroup_v1: build/mnt/.keep build/.keep
 	mkdir -p ./build/test_suite/v1
-	cd src; RUSTFLAGS='-C target-feature=+crt-static' \
+	cd test_suite_rs; RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo build --release --target x86_64-unknown-linux-gnu
 	RUSTFLAGS='-C target-feature=+crt-static' \
-		cargo install --path ./src --root ./build/test_suite/v1 --no-track --frozen --target x86_64-unknown-linux-gnu
+		cargo install --path ./test_suite_rs --root ./build/test_suite/v1 \
+		--no-track --frozen --target x86_64-unknown-linux-gnu
 	mkdir -p ./build/mnt/root/test_suite_v1
 	cp -r ./build/test_suite/v1/bin/* ./build/mnt/root/test_suite_v1/
 	rm -rf ./build/test_suite/v1
