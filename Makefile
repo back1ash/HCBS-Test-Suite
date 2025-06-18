@@ -1,4 +1,4 @@
-.PHONY: all cgroup_v1 cgroup_v2 clean
+.PHONY: all cgroup_v1 cgroup_v2 tasksets clean
 
 all: build/core.gz
 
@@ -33,6 +33,8 @@ build/busybox.gz: build/.keep
 		sed -i '967 cCONFIG_TC=n' ./build/BuildCore/Configs/config-busybox-3;\
 	fi
 	cd ./build/busybox; sh $(shell pwd)/build/BuildCore/buildcore.sh $(shell pwd)/build/busybox.gz
+
+tasksets: build/tasksets.gz
 
 build/tasksets.gz: build/.keep
 	rm -rf ./build/tasksets/root/tasksets

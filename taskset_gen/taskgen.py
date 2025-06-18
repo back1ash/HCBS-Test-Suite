@@ -1,4 +1,5 @@
 import sys
+from typing import Any
 import numpy
 
 class OutputOptions:
@@ -8,7 +9,6 @@ class OutputOptions:
 class ConfigGenOptions:
     def __init__(self, period_minmax: tuple[int, int], period_step: int | None):
         self.permin, self.permax = period_minmax
-        self.pergran = period_step
 
         if self.permin <= 0:
             print("Period minimum must be greater than 0", file=sys.stderr)
@@ -23,7 +23,9 @@ class ConfigGenOptions:
             exit(1)
 
         #pergran = None is default.  Set to permin in this case
-        if self.pergran == None:
+        if period_step is not None:
+            self.pergran = period_step
+        else:
             self.pergran = self.permin
 
         if self.pergran < 1:
@@ -31,9 +33,9 @@ class ConfigGenOptions:
             exit(1)
 
 class TaskgenOptions:
-    def __init__(self, num_tasksets_per_utilization: int, num_tasks_minax: tuple[int, int], utilizations: list[float], period_minmax: tuple[int, int], period_step: int | None = None, seed: int = 0):
+    def __init__(self, num_tasksets_per_utilization: int, num_tasks_minmax: tuple[int, int], utilizations: list[float], period_minmax: tuple[int, int], period_step: int | None = None, seed: int = 0):
         self.num_tasksets_per_utilization = num_tasksets_per_utilization
-        self.num_tasks_minmax = num_tasks_minax
+        self.num_tasks_minmax = num_tasks_minmax
         self.utilizations = utilizations
         self.period_minmax = period_minmax
         self.period_step = period_step
@@ -141,7 +143,7 @@ def gen_tasksets(options: TaskgenLibOptions) -> list[Taskset]:
     from taskgen_lib import StaffordRandFixedSum, gen_periods
 
     x = StaffordRandFixedSum(options.n, options.util, options.nsets)
-    periods = gen_periods(options.n, options.nsets, options.permin, options.permax, options.pergran, options.perdist)
+    periods: Any = gen_periods(options.n, options.nsets, options.permin, options.permax, options.pergran, options.perdist)
     #iterate through each row (which represents utils for a taskset)
     tasksets = []
     for i in range(numpy.size(x, axis=0)):
@@ -171,11 +173,12 @@ def gen_configs(tasksets: list[Taskset], options: ConfigGenOptions) -> list[tupl
     out = [ (taskset, []) for taskset in tasksets ]
     for future in concurrent.futures.as_completed(futures):
         taskset_id, config = future.result()
-        out[taskset_id][1].append(config)
+        if config is not None:
+            out[taskset_id][1].append(config)
 
     return out
 
-def carts_analysis(id: int, taskset: Taskset, period: int) -> tuple[int, Config]:
+def carts_analysis(id: int, taskset: Taskset, period: int) -> tuple[int, Config | None]:
     from tempfile import NamedTemporaryFile
     import subprocess
 
@@ -198,7 +201,7 @@ f'''<system os_scheduler="DM" min_period="0" max_period="0">
         tasks = '\n'.join(tasks)
         return f"{header}{tasks}{footer}"
 
-    def parse_output_file(data: str):
+    def parse_output_file(data: str) -> Config | None:
         from math import ceil
 
         for line in data.splitlines():
@@ -261,7 +264,7 @@ def main():
     taskgen_options = TaskgenOptions(
         3,
         (2,16),
-        [ i for i in float_range(0.2, 8.01, 0.4) ],
+        [ i for i in float_range(0.2, 6.01, 0.2) ],
         (100, 500),
         10,
         42
