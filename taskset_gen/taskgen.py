@@ -232,6 +232,30 @@ f'''<system os_scheduler="DM" min_period="0" max_period="0">
 
     return (id, parse_output_file(out_data))
 
+def mpr_analysis(id: int, taskset: Taskset, config: Config) -> tuple[int, Config | None]:
+    from tempfile import NamedTemporaryFile
+    import subprocess
+
+    def parse_output_file(out_data: str, config: Config) -> Config | None:
+        print(out_data)
+        if "Schedulable M-SBF: 1" in out_data or "Schedulable H-BCL: 1" in out_data:
+            return config
+        return None
+
+    mpr_bin = "build/MultiContainerAnalysis/SchedAnalysis/m-h_test"
+
+    out_data = ""
+    with NamedTemporaryFile(delete_on_close=False) as input:
+        input.write(taskset.format_out().encode())
+        input.close()
+
+        cpus = [ str(config.runtime), str(config.period) ] * config.num_cpus
+        proc = subprocess.run([mpr_bin, input.name] + cpus, shell=False, capture_output=True)
+
+        out_data = proc.stdout.decode()
+
+    return (id, parse_output_file(out_data, config))
+
 def save_configs(tasksets: list[tuple[Taskset, list[Config]]], options: OutputOptions):
     import os
 

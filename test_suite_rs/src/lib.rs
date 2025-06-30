@@ -78,7 +78,15 @@ pub struct PeriodicThreadData {
 }
 
 pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dyn std::error::Error>> {
-    let mut cmd_str = "/bin/periodic_thread".to_owned();
+    let cmd = std::env::var("TESTBINDIR").unwrap_or_else(|_| "/bin".to_owned()) + "/periodic_thread";
+
+    if !std::fs::exists(&cmd)
+        .map_err(|err| format!("Error in checking existance of {cmd}: {err}"))?
+    {
+        Err(format!("Cannot find periodic_thread executable at {cmd}"))?;
+    }
+
+    let mut cmd_str = cmd.clone();
 
     if args.tasks.len() == 0 {
         Err(format!("Attempted executing periodic_thread with no tasks"))?;
@@ -93,14 +101,16 @@ pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dy
     cmd_str += &format!(" {0} -N {1} -n {2}", args.extra_args, args.num_instances_per_job, num_tasks);
     let cmd_str: Vec<_> = cmd_str.trim_ascii().split_ascii_whitespace().collect();
 
-    let out_file = std::fs::OpenOptions::new().write(true).create(true).open(args.out_file)?;
+    let out_file = std::fs::OpenOptions::new().write(true).create(true).open(&args.out_file)
+        .map_err(|err| format!("OutFile creation error {}: {err}", &args.out_file))?;
 
-    let proc = Command::new("/bin/periodic_thread")
+    let proc = Command::new(cmd)
         .args(cmd_str)
         .stdin(Stdio::null())
         .stdout(out_file)
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn()
+        .map_err(|err| format!("Error in starting periodic thread: {err}"))?;
 
     Ok(MyProcess { process: proc })
 }

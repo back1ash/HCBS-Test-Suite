@@ -102,8 +102,11 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
     }
 
     let tmp_output_file = "/tmp/out.txt";
-    if std::fs::exists(tmp_output_file)? {
-        std::fs::remove_file(tmp_output_file)?;
+    if std::fs::exists(tmp_output_file)
+        .map_err(|err| format!("Error in checking existance of {tmp_output_file}: {err}"))?
+    {
+        std::fs::remove_file(tmp_output_file)
+            .map_err(|err| format!("Error in removing {tmp_output_file}: {err}"))?
     }
 
     let cgroup = MyCgroup::new(
