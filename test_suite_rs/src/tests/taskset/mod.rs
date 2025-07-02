@@ -1,12 +1,31 @@
 use crate::prelude::*;
 
+#[derive(clap::Parser, Debug)]
 pub struct MyArgs {
-    pub tasksets_dir: String,
-    pub output_dir: String,
+    /// cgroup's name
+    #[arg(short = 'c', long = "cgroup", default_value = "g0", value_name = "name")]
     pub cgroup: String,
+
+    /// number of cpus of the machine
+    #[arg(short = 'n', long = "cpus", value_name = "u64")]
     pub max_num_cpus: u64,
+
+    /// max allocatable bandwidth for the cgroup. This is usually 0.95 as 5% of
+    /// the bandwidth is reserved for SCHED_OTHER tasks.
+    #[arg(short = 'b', long = "max-bw", value_name = "f32", default_value = "0.95")]
     pub max_allocatable_bw: f32,
+
+    /// number of instances per job
+    #[arg(short = 'j', long = "job", value_name = "u64", default_value = "200")]
     pub num_instances_per_job: u64,
+
+    /// directory of tasksets description
+    #[arg(short = 'i', long = "tasksets_dir", value_name = "path")]
+    pub tasksets_dir: String,
+
+    /// results/output directory
+    #[arg(short = 'o', long = "output_dir", value_name = "path")]
+    pub output_dir: String,
 }
 
 pub struct MyResult {

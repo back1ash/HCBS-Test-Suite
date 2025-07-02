@@ -131,3 +131,4 @@ build/.keep:
 
 clean:
 	rm -rf ./build
+	cd test_suite_rs; cargo clean

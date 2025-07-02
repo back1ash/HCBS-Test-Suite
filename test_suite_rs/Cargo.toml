@@ -35,8 +35,8 @@ name = "time"
 path = "src/bin/time/main.rs"
 
 [[bin]]
-name = "taskset_all"
-path = "src/bin/taskset/all.rs"
+name = "taskset"
+path = "src/bin/taskset/main.rs"
 
 [[bin]]
 name = "tools_mount_cgroup_fs"
