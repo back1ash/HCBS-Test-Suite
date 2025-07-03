@@ -34,7 +34,7 @@ pub fn get_cgroup_of_pid(pid: u32) -> Result<String, Box<dyn std::error::Error>>
     std::fs::read_to_string(format!("/proc/{}/cgroup", pid))
         .map_err(|err| err.into())
         .and_then(|str| {
-            str.strip_prefix("0::/")
+            str.trim().strip_prefix("0::/")
                 .ok_or("cgroup file should've started with 0::/".into())
                 .map(|str| {
                     if str.is_empty() {

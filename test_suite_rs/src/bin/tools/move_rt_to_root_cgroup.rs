@@ -10,7 +10,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let cgroup = hcbs_test_suite::prelude::get_cgroup_of_pid(pid.as_u32())?;
         if cgroup == "." { continue; };
 
-        hcbs_test_suite::prelude::migrate_task_to_cgroup(&cgroup, pid.as_u32())?;
+        hcbs_test_suite::prelude::migrate_task_to_cgroup(".", pid.as_u32())?;
+        println!("Migrated task {}", pid.as_u32());
     }
 
     Ok(())
