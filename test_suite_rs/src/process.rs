@@ -3,9 +3,11 @@ use crate::{cgroup::{__cgroup_exists, __cgroup_path}, utils::__println_debug};
 pub mod prelude {
     pub use super::{
         MySchedPolicy,
+        get_cgroup_of_pid,
         is_pid_in_cgroup,
         get_cgroup_pids,
         migrate_task_to_cgroup,
+        get_policy,
         chrt,
         kill,
         get_process_total_cpu_usage,
@@ -17,6 +19,8 @@ pub mod prelude {
 #[derive(PartialEq, Eq)]
 pub enum MySchedPolicy {
     OTHER,
+    BATCH,
+    IDLE,
     FIFO(i32),
     RR(i32),
     DEADLINE {
@@ -24,6 +28,22 @@ pub enum MySchedPolicy {
         deadline_ms: u64,
         period_ms: u64,
     }
+}
+
+pub fn get_cgroup_of_pid(pid: u32) -> Result<String, Box<dyn std::error::Error>> {
+    std::fs::read_to_string(format!("/proc/{}/cgroup", pid))
+        .map_err(|err| err.into())
+        .and_then(|str| {
+            str.strip_prefix("0::/")
+                .ok_or("cgroup file should've started with 0::/".into())
+                .map(|str| {
+                    if str.is_empty() {
+                        ".".to_string()
+                    } else {
+                        str.to_string()
+                    }
+                })
+        })
 }
 
 pub fn is_pid_in_cgroup(name: &str, pid: u32) -> Result<bool, Box<dyn std::error::Error>> {
@@ -71,6 +91,29 @@ pub fn kill(pid: u32) {
     __println_debug(|| format!("Killed pid {pid}"));
 }
 
+pub fn get_policy(pid: u32) -> Result<MySchedPolicy, String> {
+    use scheduler::{get_policy, get_priority};
+
+    let pid = pid as i32;
+
+    let policy = get_policy(pid)
+        .map_err(|_| format!("Error in getting policy for pid {pid}"))?;
+
+    let prio = get_priority(scheduler::Which::Process, pid)
+        .map_err(|_| format!("Error in getting priority for pid {pid}"))?;
+
+    let policy = match policy {
+        scheduler::Policy::Other => MySchedPolicy::OTHER,
+        scheduler::Policy::Fifo => MySchedPolicy::FIFO(prio),
+        scheduler::Policy::RoundRobin => MySchedPolicy::RR(prio),
+        scheduler::Policy::Batch => MySchedPolicy::BATCH,
+        scheduler::Policy::Idle => MySchedPolicy::IDLE,
+        scheduler::Policy::Deadline => MySchedPolicy::DEADLINE { runtime_ms: 0, deadline_ms: 0, period_ms: 0 },
+    };
+
+    Ok(policy)
+}
+
 pub fn chrt(pid: u32, policy: MySchedPolicy) -> Result<(), String> {
     use scheduler::set_policy;
 
@@ -78,6 +121,8 @@ pub fn chrt(pid: u32, policy: MySchedPolicy) -> Result<(), String> {
 
     match policy {
         MySchedPolicy::OTHER => set_policy(pid, scheduler::Policy::Other, 0),
+        MySchedPolicy::BATCH => set_policy(pid, scheduler::Policy::Batch, 0),
+        MySchedPolicy::IDLE => set_policy(pid, scheduler::Policy::Idle, 0),
         MySchedPolicy::FIFO(prio) => set_policy(pid, scheduler::Policy::Fifo, prio),
         MySchedPolicy::RR(prio) => set_policy(pid, scheduler::Policy::RoundRobin, prio),
         MySchedPolicy::DEADLINE { runtime_ms, deadline_ms, period_ms } => {

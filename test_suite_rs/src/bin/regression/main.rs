@@ -49,6 +49,7 @@ pub enum Command {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Command as clap::Parser>::parse();
+    hcbs_test_suite::cgroup::mount_cgroup_fs()?;
 
     use Command::*;
 

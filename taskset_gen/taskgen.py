@@ -281,27 +281,53 @@ def float_range(min: float, max: float, step: float):
         yield val
         val += step
 
+def parse_args() -> tuple[TaskgenOptions, ConfigGenOptions, OutputOptions]:
+    import argparse, sys
+
+    parser = argparse.ArgumentParser(prog="Taskset Generator")
+
+    parser.add_argument("-o", "--outdir", type=str, required=True)
+    parser.add_argument("-n", "--taskset-per-util", default=3, type=int, help="default: 3")
+    parser.add_argument("-t", "--num-tasks-min", default=2, type=int, help="default: 2")
+    parser.add_argument("-T", "--num-tasks-max", default=16, type=int, help="default: 16")
+    parser.add_argument("-u", "--tasks-util-min", default=0.2, type=float, help="default: 0.2")
+    parser.add_argument("-U", "--tasks-util-max", default=6.0, type=float, help="default: 6.0")
+    parser.add_argument("--tasks-util-step", default=0.2, type=float, help="default: 0.2")
+    parser.add_argument("-p", "--tasks-period-min", default=100, type=int, help="default: 100")
+    parser.add_argument("-P", "--tasks-period-max", default=500, type=int, help="default: 500")
+    parser.add_argument("--tasks-period-step", default=10, type=int, help="default: 10")
+    parser.add_argument("-c", "--cgroup-period-min", default=100, type=int, help="default: 100")
+    parser.add_argument("-C", "--cgroup-period-max", default=500, type=int, help="default: 500")
+    parser.add_argument("--cgroup-period-step", default=200, type=int, help="default: 200")
+    parser.add_argument("-R", "--seed", default=42, type=int, help="default: 42")
+
+    parsed = parser.parse_args(sys.argv[1:])
+
+    taskgen_options = TaskgenOptions(
+        parsed.taskset_per_util,
+        (parsed.num_tasks_min, parsed.num_tasks_max),
+        [ i for i in float_range(parsed.tasks_util_min, parsed.tasks_util_max + 0.01, parsed.tasks_util_step) ],
+        (parsed.tasks_period_min, parsed.tasks_period_max),
+        parsed.tasks_period_step,
+        parsed.seed,
+    )
+
+    config_gen_options = ConfigGenOptions(
+        (parsed.cgroup_period_min, parsed.cgroup_period_max),
+        parsed.cgroup_period_step,
+    )
+
+    output_options = OutputOptions(
+        parsed.outdir
+    )
+
+    return (taskgen_options, config_gen_options, output_options)
+
 def main():
     import os
     import random, math
 
-    taskgen_options = TaskgenOptions(
-        3,
-        (2,16),
-        [ i for i in float_range(0.2, 6.01, 0.2) ],
-        (100, 500),
-        10,
-        42
-    )
-
-    config_gen_options = ConfigGenOptions(
-        (100, 500),
-        200
-    )
-
-    output_options = OutputOptions(
-        "../build/tasksets/root/tasksets"
-    )
+    taskgen_options, config_gen_options, output_options = parse_args()
 
     if os.path.exists(output_options.out_folder):
         print(f"Out folder already exists: {output_options.out_folder}")

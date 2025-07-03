@@ -35,6 +35,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn s
     let bandwidth = args.runtime_ms as f32 / args.period_ms as f32;
     let dl_runtime_ms = args.period_ms * 40 / 100;
 
+    migrate_task_to_cgroup(".", std::process::id())?;
     let dl_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
     let cgroup_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
 
@@ -51,11 +52,9 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn s
 
     cgroup_processes.iter()
         .try_for_each(|proc| {
-            migrate_task_to_cgroup(&args.cgroup, proc.id())
-            .and_then(|_|
-                chrt(proc.id(), MySchedPolicy::RR(50))
+            migrate_task_to_cgroup(&args.cgroup, proc.id())?;
+            chrt(proc.id(), MySchedPolicy::RR(50))
                 .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
-            )
         })?;
 
     if !is_batch_test() {

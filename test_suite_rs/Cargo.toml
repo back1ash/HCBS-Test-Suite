@@ -39,8 +39,5 @@ name = "taskset"
 path = "src/bin/taskset/main.rs"
 
 [[bin]]
-name = "tools_mount_cgroup_fs"
-path = "src/bin/tools/mount_cgroup_fs.rs"
-[[bin]]
-name = "tools_realtime_bw_change"
-path = "src/bin/tools/realtime_bw_change.rs"
+name = "tools"
+path = "src/bin/tools/main.rs"

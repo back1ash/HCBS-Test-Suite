@@ -10,6 +10,7 @@ pub struct MyArgs {
 pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
 
+    migrate_task_to_cgroup(".", std::process::id())?;
     let fifo_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
     let non_fifo_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
 

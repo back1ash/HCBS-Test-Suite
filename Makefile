@@ -68,17 +68,18 @@ build/initrd-busybox.gz: build/.keep
 # tasksets
 tasksets: build/initrd-tasksets.gz build/install-tasksets.tar.gz
 
-build/tasksets/root/tasksets/.keep: build/.keep
-	mkdir -p build/tasksets/root/tasksets
-	touch build/tasksets/root/tasksets/.keep
-	cd taskset_gen; python -B taskgen.py
+build/tasksets/.keep: build/.keep
+	mkdir -p build/tasksets
+	touch build/tasksets/.keep
+	cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets
+	cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets_6cpu -T 6 -U 4 -p 50 -P 300 -t 1 -R 1575
 
-build/initrd-tasksets.gz: build/tasksets/root/tasksets/.keep
+build/initrd-tasksets.gz: build/tasksets/.keep
 	# get CARTS (?)	
 	cd ./build/tasksets; find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
 
-build/install-tasksets.tar.gz: build/tasksets/root/tasksets/.keep
-	cd build/tasksets/root; tar -czvf ../../install-tasksets.tar.gz tasksets/
+build/install-tasksets.tar.gz: build/tasksets/.keep
+	cd build/tasksets/root; tar -czvf ../../install-tasksets.tar.gz .
 
 # test software
 cgroup: build/initrd.gz build/install-test.tar.gz
