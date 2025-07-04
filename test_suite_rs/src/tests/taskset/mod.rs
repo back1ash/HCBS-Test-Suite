@@ -89,6 +89,7 @@ struct TasksetRunResultInsights {
 }
 
 mod parser;
+use nom::Err;
 use parser::*;
 
 fn __os_str_to_str(string: &std::ffi::OsStr) -> Result<String, Box<dyn std::error::Error>> {
@@ -170,6 +171,18 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
         results: parse_taskset_results(&run.output_file)?,
     };
 
+    //assert result is compatible with program input
+    for i in 0..result.taskset.data.len() {
+        let ith_job_instances =
+            result.results.iter()
+            .filter(|res| res.task == (i as u64))
+            .count() as u64;
+
+        if ith_job_instances != args.num_instances_per_job {
+            return Err(format!("Taskset {}, config {}, generated an incorrect output.", result.taskset.name, result.config.name).into());
+        }
+    }
+
     Ok(result)
 }
 
@@ -210,7 +223,7 @@ fn can_run_taskset(run: &TasksetRun, args: &MyArgs) -> bool {
     true
 }
 
-pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+fn get_tasksets_runs(args: &MyArgs) -> Result<Vec<TasksetRun>, Box<dyn std::error::Error>> {
     let tasksets_dir = &args.tasksets_dir;
 
     let mut taskset_runs = Vec::new();
@@ -275,6 +288,34 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
         }
     });
 
+    Ok(taskset_runs)
+}
+
+pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+    mount_cgroup_fs()?;
+
+    let period = get_system_rt_period()?;
+    let runtime = get_system_rt_runtime()?;
+    let target_runtime = (args.max_allocatable_bw * period as f32) as u64;
+    let cgroup_period = crate::cgroup::__get_cgroup_period(".")?;
+    let cgroup_runtime = crate::cgroup::__get_cgroup_runtime(".")?;
+    let cgroup_target_runtime = (args.max_allocatable_bw * cgroup_period as f32) as u64;
+
+    set_system_rt_runtime(target_runtime)?;    
+    crate::cgroup::__set_cgroup_runtime(".", cgroup_target_runtime)?;
+
+    let res = __run_taskset_array(args);
+
+    crate::cgroup::__set_cgroup_runtime(".", cgroup_runtime)?;
+    set_system_rt_runtime(runtime)?;
+    
+    res
+}
+
+fn __run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+    // run tasksets
+    let taskset_runs = get_tasksets_runs(&args)?;
+
     // taskset first insights
     let total_expected_runtime_us: u64 = taskset_runs.iter()
         .filter(|run| can_run_taskset(run, &args))
@@ -324,7 +365,60 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
 
         if insights.num_overruns > 0 {
             println!("- Taskset {}, config {} failed: {:.2} % error rate, {} worst overrun",
-            taskset_name, config_name, insights.overruns_ratio, insights.worst_overrun);
+            taskset_name, config_name, insights.overruns_ratio * 100f64, insights.worst_overrun);
+
+            failures += 1;
+        }
+
+        results.push(result);
+    }
+
+    println!("Outcome: {}/{} failures/tests, {:.2} failure ratio",
+        failures, total_runs, failures as f64 / total_runs as f64);
+
+    Ok(MyResult { results })
+}
+
+pub fn read_results_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+    let taskset_runs = get_tasksets_runs(&args)?;
+
+    // taskset first insights
+    let total_runs = taskset_runs.len() as u64;
+    let todo_runs = taskset_runs.iter()
+        .filter(|run| can_run_taskset(run, &args))
+        .filter(|run| std::path::Path::new(&run.output_file).exists())
+        .count() as u64;
+
+    println!("Run {}/{} tasksets.", todo_runs, total_runs);
+
+    // read results
+    let mut failures = 0u64;
+    let mut results = Vec::with_capacity(taskset_runs.len());
+    for run in taskset_runs.into_iter() {
+        if !can_run_taskset(&run, &args) {
+            continue;
+        }
+
+        let taskset_name = run.tasks.name.clone();
+        let config_name = run.config.name.clone();
+
+        let result =
+            if std::path::Path::new(&run.output_file).exists() {
+                TasksetRunResult {
+                    taskset: run.tasks,
+                    config: run.config,
+                    results: parse_taskset_results(&run.output_file)?,
+                }
+            } else {
+                println!("* Taskset {}, config {}: no output", run.tasks.name, run.config.name);
+                continue;
+            };
+
+        let insights = compute_result_insights(&result);
+
+        if insights.num_overruns > 0 {
+            println!("- Taskset {}, config {} failed: {:.2} % error rate, {} worst overrun",
+            taskset_name, config_name, insights.overruns_ratio * 100f64, insights.worst_overrun);
 
             failures += 1;
         }

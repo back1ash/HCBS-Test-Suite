@@ -86,15 +86,29 @@ pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dy
         Err(format!("Cannot find periodic_thread executable at {cmd}"))?;
     }
 
-    let mut cmd_str = cmd.clone();
-
     if args.tasks.len() == 0 {
         Err(format!("Attempted executing periodic_thread with no tasks"))?;
     }
 
+    // assert tasks are ordered by period (ascending)
+    if args.tasks.iter()
+        .fold(Some(0), |last_period, task| {
+            let last_period = last_period?;
+            if task.period_ms >= last_period {
+                Some(task.period_ms)
+            } else {
+                None
+            }
+        }).is_none()
+    {
+        return Err(format!("Taskset tasks are not sorted by period.").into());
+    }
+
+
     let mut num_tasks = 0;
+    let mut cmd_str = String::new();
     for (prio, task) in (1..=args.start_priority).rev().zip(args.tasks.iter()) {
-        cmd_str += &format!(" -C {0} -p {1} -P {2}", task.runtime_ms, task.period_ms, prio);
+        cmd_str += &format!(" -C {0} -p {1} -P {2}", task.runtime_ms * 1000, task.period_ms * 1000, prio);
         num_tasks += 1;
     }
 

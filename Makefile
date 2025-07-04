@@ -71,11 +71,11 @@ tasksets: build/initrd-tasksets.gz build/install-tasksets.tar.gz
 build/tasksets/.keep: build/.keep
 	mkdir -p build/tasksets
 	touch build/tasksets/.keep
+	# get CARTS (?)	
 	cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets
-	cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets_6cpu -T 6 -U 4 -p 50 -P 300 -t 1 -R 1575
+	# cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets_6cpu -T 6 -U 4 -p 50 -P 300 -t 1 -R 1575
 
 build/initrd-tasksets.gz: build/tasksets/.keep
-	# get CARTS (?)	
 	cd ./build/tasksets; find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
 
 build/install-tasksets.tar.gz: build/tasksets/.keep

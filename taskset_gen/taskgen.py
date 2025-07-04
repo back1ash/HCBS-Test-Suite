@@ -45,7 +45,8 @@ class TaskgenOptions:
             numpy.random.seed(self.seed)
 
 class TaskgenLibOptions:
-    def __init__(self, num_tasksets: int, num_tasks: int, utilization: float, period_minmax: tuple[int, int], period_step: int | None = None, distribution: str = 'logunif', round: bool = True):
+    def __init__(self, id: int, num_tasksets: int, num_tasks: int, utilization: float, period_minmax: tuple[int, int], period_step: int | None = None, distribution: str = 'logunif', round: bool = True):
+        self.id = id
         self.n = num_tasks
         self.util = utilization
         self.nsets = num_tasksets
@@ -114,11 +115,16 @@ class Task:
         return f"{self.runtime:.0f} {self.deadline:.0f} {self.period:.0f}"
 
 class Taskset:
-    def __init__(self, tasks: list[Task]):
+    def __init__(self, tasks: list[Task], utilization: float, id: int):
         self.tasks = tasks
+        self.utilization = utilization
+        self.id = id
 
     def __repr__(self):
         return f"<Taskset {self.tasks}>"
+
+    def name(self):
+        return f"taskset_U{self.utilization:3.1f}_N{len(self.tasks):02d}_{self.id:03d}"
 
     def format_out(self):
         out = ''
@@ -155,9 +161,13 @@ def gen_tasksets(options: TaskgenLibOptions) -> list[Taskset]:
 
         taskset = []
         for t in range(numpy.size(taskset_data,0)):
+            if taskset_data[t][3] == 0:
+                continue
+
             taskset += [ Task(taskset_data[t][3], taskset_data[t][2], taskset_data[t][0]) ]
 
-        tasksets += [ Taskset(taskset) ]
+        taskset.sort(key= lambda task: task.period)
+        tasksets += [ Taskset(taskset, options.util, options.id) ]
 
     return tasksets
 
@@ -173,8 +183,11 @@ def gen_configs(tasksets: list[Taskset], options: ConfigGenOptions) -> list[tupl
     out = [ (taskset, []) for taskset in tasksets ]
     for future in concurrent.futures.as_completed(futures):
         taskset_id, config = future.result()
+        print(f"Generated new config for taskset {taskset_id}/{len(out)}")
         if config is not None:
             out[taskset_id][1].append(config)
+        else:
+            print(f"* Generation failed for taskset {taskset_id}")
 
     return out
 
@@ -260,7 +273,7 @@ def save_configs(tasksets: list[tuple[Taskset, list[Config]]], options: OutputOp
     import os
 
     for i, (taskset, configs) in enumerate(tasksets):
-        name = f"taskset{i:03d}"
+        name = taskset.name()
         path = f"{options.out_folder}/{name}"
         os.makedirs(path)
 
@@ -288,10 +301,10 @@ def parse_args() -> tuple[TaskgenOptions, ConfigGenOptions, OutputOptions]:
 
     parser.add_argument("-o", "--outdir", type=str, required=True)
     parser.add_argument("-n", "--taskset-per-util", default=3, type=int, help="default: 3")
-    parser.add_argument("-t", "--num-tasks-min", default=2, type=int, help="default: 2")
+    parser.add_argument("-t", "--num-tasks-min", default=6, type=int, help="default: 6")
     parser.add_argument("-T", "--num-tasks-max", default=16, type=int, help="default: 16")
-    parser.add_argument("-u", "--tasks-util-min", default=0.2, type=float, help="default: 0.2")
-    parser.add_argument("-U", "--tasks-util-max", default=6.0, type=float, help="default: 6.0")
+    parser.add_argument("-u", "--tasks-util-min", default=0.2, type=float, help="default: 0.5")
+    parser.add_argument("-U", "--tasks-util-max", default=6.0, type=float, help="default: 2.5")
     parser.add_argument("--tasks-util-step", default=0.2, type=float, help="default: 0.2")
     parser.add_argument("-p", "--tasks-period-min", default=100, type=int, help="default: 100")
     parser.add_argument("-P", "--tasks-period-max", default=500, type=int, help="default: 500")
@@ -336,14 +349,18 @@ def main():
     # generate tasksets
     tasksets = []
     rand = random.Random(taskgen_options.seed)
+    print("Generating tasksets...")
+    min_tasks, max_tasks = taskgen_options.num_tasks_minmax[0], taskgen_options.num_tasks_minmax[1]
+    num_tasks_step = (max_tasks - min_tasks) // taskgen_options.num_tasksets_per_utilization
+
     for utilization in taskgen_options.utilizations:
-        for _ in range(taskgen_options.num_tasksets_per_utilization):
-            min_tasks = max(taskgen_options.num_tasks_minmax[0], math.floor(utilization) + 1)
-            max_tasks = taskgen_options.num_tasks_minmax[1]
+        for num_tasks in range(min_tasks, max_tasks + 1, num_tasks_step):
+            num_tasks = max(num_tasks, math.floor(utilization) + 1)
 
             task_options = TaskgenLibOptions(
+                0,
                 1,
-                rand.randrange(min_tasks, max_tasks + 1),
+                num_tasks,
                 utilization,
                 taskgen_options.period_minmax,
                 taskgen_options.period_step,
@@ -352,7 +369,9 @@ def main():
             )
 
             tasksets += gen_tasksets(task_options)
+    print("Generating configs...")
     configs = gen_configs(tasksets, config_gen_options)
+    print("Saving...")
     save_configs(configs, output_options)
 
 if __name__ == "__main__":
