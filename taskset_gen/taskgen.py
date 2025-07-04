@@ -348,10 +348,9 @@ def main():
 
     # generate tasksets
     tasksets = []
-    rand = random.Random(taskgen_options.seed)
     print("Generating tasksets...")
     min_tasks, max_tasks = taskgen_options.num_tasks_minmax[0], taskgen_options.num_tasks_minmax[1]
-    num_tasks_step = (max_tasks - min_tasks) // taskgen_options.num_tasksets_per_utilization
+    num_tasks_step = math.ceil((max_tasks - min_tasks) / taskgen_options.num_tasksets_per_utilization)
 
     for utilization in taskgen_options.utilizations:
         for num_tasks in range(min_tasks, max_tasks + 1, num_tasks_step):

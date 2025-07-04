@@ -34,6 +34,7 @@ build/PeriodicTask/.keep: build/.keep
 		git init ./build/PeriodicTask;\
 		git -C ./build/PeriodicTask fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git 8b1839d2c2207cbb7e80f25e9d6773bbeab6630e;\
 		git -C ./build/PeriodicTask checkout FETCH_HEAD;\
+		sed -i '18 c#define MAX_TH 50' ./build/PeriodicTask/periodic_thread.c;\
 	fi
 	make -C ./build/PeriodicTask periodic_task
 	make -C ./build/PeriodicTask periodic_thread
