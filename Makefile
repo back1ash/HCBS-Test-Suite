@@ -22,8 +22,8 @@ build/install.tar.gz: build/install-periodic.tar.gz build/install-test.tar.gz bu
 	cat build/install-tasksets.tar.gz >> build/install.tar.gz
 	cat build/install-scripts.tar.gz >> build/install.tar.gz
 	mkdir -p build/install
-	cd build/install; tar -ixvf ../install.tar.gz
-	cd build/install; tar -czvf ../install.tar.gz .
+	cd build/install && tar -ixvf ../install.tar.gz
+	cd build/install && tar -czvf ../install.tar.gz .
 	rm -r build/install
 
 # periodic task runner
@@ -44,13 +44,13 @@ build/initrd-periodic.gz: build/PeriodicTask/.keep
 	mkdir -p ./build/periodic-task-initrd/bin
 	cp ./build/PeriodicTask/periodic_task ./build/periodic-task-initrd/bin/periodic_task
 	cp ./build/PeriodicTask/periodic_thread ./build/periodic-task-initrd/bin/periodic_thread
-	cd ./build/periodic-task-initrd; find . | cpio -o -H newc | gzip > ../initrd-periodic.gz
+	cd ./build/periodic-task-initrd && find . | cpio -o -H newc | gzip > ../initrd-periodic.gz
 
 build/install-periodic.tar.gz: build/PeriodicTask/.keep
 	mkdir -p ./build/periodic-task-install/bin
 	cp ./build/PeriodicTask/periodic_task ./build/periodic-task-install/bin/periodic_task
 	cp ./build/PeriodicTask/periodic_thread ./build/periodic-task-install/bin/periodic_thread
-	cd build/periodic-task-install; tar -czvf ../install-periodic.tar.gz bin/
+	cd build/periodic-task-install && tar -czvf ../install-periodic.tar.gz bin/
 
 # busybox
 busybox: build/initrd-busybox.gz
@@ -64,7 +64,7 @@ build/initrd-busybox.gz: build/.keep
 		git -C ./build/BuildCore checkout FETCH_HEAD;\
 		sed -i '967 cCONFIG_TC=n' ./build/BuildCore/Configs/config-busybox-3;\
 	fi
-	cd ./build/busybox; sh $(shell pwd)/build/BuildCore/buildcore.sh $(shell pwd)/build/initrd-busybox.gz
+	cd ./build/busybox && sh $(shell pwd)/build/BuildCore/buildcore.sh $(shell pwd)/build/initrd-busybox.gz
 
 # tasksets
 tasksets: build/initrd-tasksets.gz build/install-tasksets.tar.gz
@@ -73,14 +73,13 @@ build/tasksets/.keep: build/.keep
 	mkdir -p build/tasksets
 	touch build/tasksets/.keep
 	# get CARTS (?)	
-	cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets
-	# cd taskset_gen; python -B taskgen.py -o ../build/tasksets/root/tasksets_6cpu -T 6 -U 4 -p 50 -P 300 -t 1 -R 1575
+	cd taskset_gen && python -B taskgen.py -o ../build/tasksets/root/tasksets
 
 build/initrd-tasksets.gz: build/tasksets/.keep
-	cd ./build/tasksets; find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
+	cd ./build/tasksets && find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
 
 build/install-tasksets.tar.gz: build/tasksets/.keep
-	cd build/tasksets/root; tar -czvf ../../install-tasksets.tar.gz .
+	cd build/tasksets/root && tar -czvf ../../install-tasksets.tar.gz .
 
 # test software
 cgroup: build/initrd.gz build/install-test.tar.gz
@@ -88,14 +87,14 @@ cgroup: build/initrd.gz build/install-test.tar.gz
 build/initrd.gz: cgroup_v1 cgroup_v2
 	rm -f ./build/mnt/root/test_suite
 	ln -s /root/test_suite_v2 ./build/mnt/root/test_suite
-	cd ./build/mnt; find . | cpio -o -H newc | gzip > ../initrd.gz
+	cd ./build/mnt && find . | cpio -o -H newc | gzip > ../initrd.gz
 
 build/install-test.tar.gz: cgroup_v1 cgroup_v2
-	cd build/mnt/root/; tar -czvf ../../install-test.tar.gz test_suite_v2/ test_suite_v1/
+	cd build/mnt/root/ && tar -czvf ../../install-test.tar.gz test_suite_v2/ test_suite_v1/
 
 cgroup_v2: build/mnt/.keep build/.keep
 	mkdir -p ./build/test_suite/v2
-	cd test_suite_rs; RUSTFLAGS='-C target-feature=+crt-static' \
+	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo build --release --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo install --path ./test_suite_rs --root ./build/test_suite/v2 \
@@ -106,7 +105,7 @@ cgroup_v2: build/mnt/.keep build/.keep
 
 cgroup_v1: build/mnt/.keep build/.keep
 	mkdir -p ./build/test_suite/v1
-	cd test_suite_rs; RUSTFLAGS='-C target-feature=+crt-static' \
+	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo build --release --target x86_64-unknown-linux-gnu
 	RUSTFLAGS='-C target-feature=+crt-static' \
 		cargo install --path ./test_suite_rs --root ./build/test_suite/v1 \
@@ -117,10 +116,10 @@ cgroup_v1: build/mnt/.keep build/.keep
 
 # extra scripts
 build/initrd-scripts.gz:
-	cd scripts; find . | cpio -o -H newc | gzip > ../build/initrd-scripts.gz
+	cd scripts && find . | cpio -o -H newc | gzip > ../build/initrd-scripts.gz
 
 build/install-scripts.tar.gz:
-	cd scripts; tar -czvf ../build/install-scripts.tar.gz .
+	cd scripts && tar -czvf ../build/install-scripts.tar.gz .
 
 # generic
 build/mnt/.keep:
@@ -133,4 +132,4 @@ build/.keep:
 
 clean:
 	rm -rf ./build
-	cd test_suite_rs; cargo clean
+	cd test_suite_rs && cargo clean

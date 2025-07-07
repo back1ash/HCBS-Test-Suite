@@ -195,10 +195,11 @@ def carts_analysis(id: int, taskset: Taskset, period: int) -> tuple[int, Config 
     from tempfile import NamedTemporaryFile
     import subprocess
 
+    precision = 10
     def generate_xml_file(taskset: Taskset, period: int) -> str:
         header = \
 f'''<system os_scheduler="DM" min_period="0" max_period="0">
-  <component name="Test" scheduler="DM" min_period="{period}" max_period="{period}">
+  <component name="Test" scheduler="DM" min_period="{period * precision}" max_period="{period * precision}">
 '''
 
         footer = \
@@ -207,9 +208,8 @@ f'''<system os_scheduler="DM" min_period="0" max_period="0">
 </system>'''
 
         tasks = []
-        multiplier = 10
         for i, task in enumerate(taskset.tasks):
-            tasks += [ f"    <task name=\"T{i}\" p=\"{task.period * multiplier}\" d=\"{task.deadline * multiplier}\" e=\"{task.runtime * multiplier}\"></task>" ]
+            tasks += [ f"    <task name=\"T{i}\" p=\"{task.period * precision}\" d=\"{task.deadline * precision}\" e=\"{task.runtime * precision}\"></task>" ]
 
         tasks = '\n'.join(tasks)
         return f"{header}{tasks}{footer}"
@@ -224,8 +224,8 @@ f'''<system os_scheduler="DM" min_period="0" max_period="0">
                 if cpus == 0:
                     continue
 
-                period = int(line[2].split('"')[1])
-                runtime = ceil(float(line[3].split('"')[1]) / cpus)
+                period = int(line[2].split('"')[1]) // precision
+                runtime = ceil(float(line[3].split('"')[1]) / (cpus * precision))
                 return Config(cpus, runtime, period)
 
         return None
@@ -304,14 +304,14 @@ def parse_args() -> tuple[TaskgenOptions, ConfigGenOptions, OutputOptions]:
     parser.add_argument("-t", "--num-tasks-min", default=6, type=int, help="default: 6")
     parser.add_argument("-T", "--num-tasks-max", default=16, type=int, help="default: 16")
     parser.add_argument("-u", "--tasks-util-min", default=0.2, type=float, help="default: 0.5")
-    parser.add_argument("-U", "--tasks-util-max", default=6.0, type=float, help="default: 2.5")
+    parser.add_argument("-U", "--tasks-util-max", default=2.5, type=float, help="default: 2.5")
     parser.add_argument("--tasks-util-step", default=0.2, type=float, help="default: 0.2")
     parser.add_argument("-p", "--tasks-period-min", default=100, type=int, help="default: 100")
     parser.add_argument("-P", "--tasks-period-max", default=500, type=int, help="default: 500")
     parser.add_argument("--tasks-period-step", default=10, type=int, help="default: 10")
-    parser.add_argument("-c", "--cgroup-period-min", default=100, type=int, help="default: 100")
-    parser.add_argument("-C", "--cgroup-period-max", default=500, type=int, help="default: 500")
-    parser.add_argument("--cgroup-period-step", default=200, type=int, help="default: 200")
+    parser.add_argument("-c", "--cgroup-period-min", default=20, type=int, help="default: 20")
+    parser.add_argument("-C", "--cgroup-period-max", default=100, type=int, help="default: 100")
+    parser.add_argument("--cgroup-period-step", default=40, type=int, help="default: 40")
     parser.add_argument("-R", "--seed", default=42, type=int, help="default: 42")
 
     parsed = parser.parse_args(sys.argv[1:])

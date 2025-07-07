@@ -220,6 +220,13 @@ fn can_run_taskset(run: &TasksetRun, args: &MyArgs) -> bool {
         return false;
     }
 
+    let min_task_period_ms = run.tasks.data.iter()
+        .map(|task| task.period_ms).min().unwrap();
+
+    if min_task_period_ms < (run.config.period_ms - run.config.runtime_ms) {
+        return false;
+    }
+
     true
 }
 

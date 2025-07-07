@@ -65,6 +65,8 @@ fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::erro
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    mount_cgroup_fs()?;
+
     migrate_task_to_cgroup(".", std::process::id())?;
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
