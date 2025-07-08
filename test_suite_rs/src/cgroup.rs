@@ -54,27 +54,7 @@ pub fn __shell(cmd: &str) -> Result<std::process::Output, Box<dyn std::error::Er
 pub fn mount_cgroup_fs() -> Result<(), Box<dyn std::error::Error>> {
     __mount_cgroup_fs()?;
     __mount_cpu_fs()?;
-
-    let rt_period = get_system_rt_period()?;
-    // let rt_runtime = get_system_rt_runtime()?;
-    let rt_runtime = rt_period * 9 / 10;
-
-    let old_period = __get_cgroup_period(".")?;
-    let old_runtime = __get_cgroup_runtime(".")?;
-
-    if rt_period == old_period && rt_runtime == old_runtime {
-        return Ok(());
-    }
-
-    if old_runtime > 0 {
-        __set_cgroup_runtime(".", 0)?;
-    }
-
-    if old_period != rt_period {
-        __set_cgroup_period(".", rt_period)?;
-    }
-
-    __set_cgroup_runtime(".", rt_runtime)?;
+    
     Ok(())
 }
 
@@ -264,7 +244,7 @@ pub fn delete_cgroup(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn __set_cgroup_period(name: &str, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn __set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     std::fs::OpenOptions::new().write(true)
@@ -278,7 +258,7 @@ pub fn __set_cgroup_period(name: &str, period_us: u64) -> Result<(), Box<dyn std
     Ok(())
 }
 
-pub fn __set_cgroup_runtime(name: &str, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn __set_cgroup_runtime_us(name: &str, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     std::fs::OpenOptions::new().write(true)
@@ -292,7 +272,7 @@ pub fn __set_cgroup_runtime(name: &str, runtime_us: u64) -> Result<(), Box<dyn s
     Ok(())
 }
 
-pub fn __get_cgroup_period(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
+pub fn __get_cgroup_period_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     Ok(
@@ -303,7 +283,7 @@ pub fn __get_cgroup_period(name: &str) -> Result<u64, Box<dyn std::error::Error>
     )
 }
 
-pub fn __get_cgroup_runtime(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
+pub fn __get_cgroup_runtime_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     Ok(
@@ -321,12 +301,15 @@ pub fn cgroup_setup(name: &str, runtime_us: u64, period_us: u64) -> Result<(), B
 
     create_cgroup(name)?;
 
-    if __get_cgroup_runtime(name)? > 0 {
-        __set_cgroup_runtime(name, 0)?;
-    }
+    let old_runtime_us = __get_cgroup_runtime_us(name)?;
 
-    __set_cgroup_period(name, period_us)?;
-    __set_cgroup_runtime(name, runtime_us)?;
+    if runtime_us > old_runtime_us {
+        __set_cgroup_period_us(name, period_us)?;
+        __set_cgroup_runtime_us(name, runtime_us)?;
+    } else {
+        __set_cgroup_runtime_us(name, runtime_us)?;
+        __set_cgroup_period_us(name, period_us)?;
+    }
 
     __println_debug(|| format!("Cgroup {name} setup to {runtime_us}/{period_us} reservation"));
 
@@ -352,7 +335,7 @@ impl MyCgroup {
     }
 
     pub fn update_runtime(&mut self, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
-        __set_cgroup_runtime(&self.name, runtime_us)
+        __set_cgroup_runtime_us(&self.name, runtime_us)
     }
 
     pub fn destroy(mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -374,7 +357,7 @@ impl MyCgroup {
                 })?;
         }
 
-        __set_cgroup_runtime(&self.name, 0)?;
+        __set_cgroup_runtime_us(&self.name, 0)?;
         delete_cgroup(&self.name)
     }
 }

@@ -1,5 +1,6 @@
 mod realtime_bw_change;
 mod move_rt_to_root_cgroup;
+mod cgroup_setup;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
@@ -15,6 +16,10 @@ pub enum Command {
     /// Move all real-time tasks to the root control group
     #[command(name = "move-to-root", verbatim_doc_comment)]
     MoveRtTasksToRootCgroup,
+
+    /// Change the runtime and period to the given control group
+    #[command(name = "cgroup-setup", verbatim_doc_comment)]
+    CgroupBwChange(cgroup_setup::MyArgs),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,6 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MountCgroupFS => hcbs_test_suite::cgroup::mount_cgroup_fs()?,
         RealtimeBwChange(args) => realtime_bw_change::main(args)?,
         MoveRtTasksToRootCgroup => move_rt_to_root_cgroup::main()?,
+        CgroupBwChange(args) => cgroup_setup::main(args)?,
     };
 
     Ok(())

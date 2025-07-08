@@ -24,7 +24,7 @@ fn reduce_cgroups_runtime() -> Result<(), Box<dyn std::error::Error>> {
 
     let rt_period = get_system_rt_period()?;
     let rt_runtime = rt_period * 5 / 10;
-    __set_cgroup_runtime(".", rt_runtime)?;
+    __set_cgroup_runtime_us(".", rt_runtime)?;
     Ok(())
 }
 

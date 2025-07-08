@@ -10,10 +10,10 @@ pub struct MyArgs {
     #[arg(short = 'n', long = "cpus", value_name = "u64")]
     pub max_num_cpus: u64,
 
-    /// max allocatable bandwidth for the cgroup. This is usually 0.95 as 5% of
+    /// max allocable bandwidth for the cgroup. This is usually 0.95 as 5% of
     /// the bandwidth is reserved for SCHED_OTHER tasks.
     #[arg(short = 'b', long = "max-bw", value_name = "f32", default_value = "0.95")]
-    pub max_allocatable_bw: f32,
+    pub max_allocable_bw: f32,
 
     /// number of instances per job
     #[arg(short = 'j', long = "job", value_name = "u64", default_value = "200")]
@@ -89,7 +89,6 @@ struct TasksetRunResultInsights {
 }
 
 mod parser;
-use nom::Err;
 use parser::*;
 
 fn __os_str_to_str(string: &std::ffi::OsStr) -> Result<String, Box<dyn std::error::Error>> {
@@ -114,10 +113,10 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
     }
 
     let taskset_bw = run.config.runtime_ms as f32 / run.config.period_ms as f32;
-    if taskset_bw > args.max_allocatable_bw {
+    if taskset_bw > args.max_allocable_bw {
         println!("- Error on taskset {}, config {}", run.tasks.name, run.config.name);
-        println!("  Attempted to allocate more bandwidth ({}) than the maximum allocatable ({})",
-            taskset_bw, args.max_allocatable_bw);
+        println!("  Attempted to allocate more bandwidth ({}) than the maximum allocable ({})",
+            taskset_bw, args.max_allocable_bw);
         panic!("unexpected");
     }
 
@@ -216,7 +215,7 @@ fn can_run_taskset(run: &TasksetRun, args: &MyArgs) -> bool {
     }
 
     let taskset_bw = run.config.runtime_ms as f32 / run.config.period_ms as f32;
-    if taskset_bw > args.max_allocatable_bw {
+    if taskset_bw > args.max_allocable_bw {
         return false;
     }
 
@@ -300,26 +299,13 @@ fn get_tasksets_runs(args: &MyArgs) -> Result<Vec<TasksetRun>, Box<dyn std::erro
 
 pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
     mount_cgroup_fs()?;
+    let cgroup_period = crate::cgroup::__get_cgroup_period_us(".")?;
+    let cgroup_runtime = crate::cgroup::__get_cgroup_runtime_us(".")?;
+    let cgroup_bw = cgroup_runtime as f32 / cgroup_period as f32;
+    if cgroup_bw < args.max_allocable_bw {
+        return Err(format!("Cannot run tasksets as the maximum allocable bandwidth is {cgroup_bw}, while you are requesting {} bw", args.max_allocable_bw).into());
+    }
 
-    let period = get_system_rt_period()?;
-    let runtime = get_system_rt_runtime()?;
-    let target_runtime = (args.max_allocatable_bw * period as f32) as u64;
-    let cgroup_period = crate::cgroup::__get_cgroup_period(".")?;
-    let cgroup_runtime = crate::cgroup::__get_cgroup_runtime(".")?;
-    let cgroup_target_runtime = (args.max_allocatable_bw * cgroup_period as f32) as u64;
-
-    set_system_rt_runtime(target_runtime)?;    
-    crate::cgroup::__set_cgroup_runtime(".", cgroup_target_runtime)?;
-
-    let res = __run_taskset_array(args);
-
-    crate::cgroup::__set_cgroup_runtime(".", cgroup_runtime)?;
-    set_system_rt_runtime(runtime)?;
-    
-    res
-}
-
-fn __run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
     // run tasksets
     let taskset_runs = get_tasksets_runs(&args)?;
 

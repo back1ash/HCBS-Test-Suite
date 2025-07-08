@@ -2,15 +2,15 @@ use hcbs_test_suite::*;
 use hcbs_test_suite::prelude::*;
 
 fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
-    use hcbs_test_suite::cgroup::{__set_cgroup_period, __set_cgroup_runtime};
+    use hcbs_test_suite::cgroup::{__set_cgroup_period_us, __set_cgroup_runtime_us};
 
     println!("Cgroup \'{cgroup_name}\' setup with {runtime_us}/{period_us} runtime/period should fail.");
 
     create_cgroup(cgroup_name)?;
 
     let failure: Result<(), _> = 
-        __set_cgroup_period(cgroup_name, period_us)
-            .and_then(|_| __set_cgroup_runtime(cgroup_name, runtime_us));
+        __set_cgroup_period_us(cgroup_name, period_us)
+            .and_then(|_| __set_cgroup_runtime_us(cgroup_name, runtime_us));
 
     delete_cgroup(cgroup_name)?;
 
@@ -44,14 +44,14 @@ fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error:
 fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("Zeroing runtime to cgroup \'{cgroup_name}\' with active task should fail.");
 
-    use hcbs_test_suite::cgroup::__set_cgroup_runtime;
+    use hcbs_test_suite::cgroup::__set_cgroup_runtime_us;
 
     cgroup_setup(cgroup_name, 10_000, 100_000)?;
     let mut yes = run_yes()?;
     chrt(yes.id(), MySchedPolicy::RR(50))?;
     migrate_task_to_cgroup(cgroup_name, yes.id())?;
 
-    let failed = __set_cgroup_runtime(cgroup_name, 0);
+    let failed = __set_cgroup_runtime_us(cgroup_name, 0);
 
     yes.kill()?;
     migrate_task_to_cgroup(".", yes.id())?;
