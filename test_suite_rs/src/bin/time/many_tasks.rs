@@ -25,11 +25,20 @@ pub struct MyArgs {
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn std::error::Error>> {
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
+
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
     let procs: Vec<_> = (0..args.num_tasks)
         .map(|_| run_yes()).try_collect()?;
+    
+    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    procs.iter()
+        .try_for_each(|proc| {
+            migrate_task_to_cgroup(&args.cgroup, proc.id())?;
+            chrt(proc.id(), MySchedPolicy::RR(50))?;
+
+            Ok::<_, Box<dyn std::error::Error>>(())
+        })?;
 
     if !is_batch_test() {
         println!("Started Yes processes\nPress Ctrl+C to stop");

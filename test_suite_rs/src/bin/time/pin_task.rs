@@ -15,7 +15,7 @@ pub struct MyArgs {
     pub period_ms: u64,
 
     /// task's allowed cpus
-    #[arg(short = 'c', long = "cpu-set", value_parser = <CpuSet as std::str::FromStr>::from_str)]
+    #[arg(long = "cpu-set", value_parser = <CpuSet as std::str::FromStr>::from_str)]
     pub cpu_set: CpuSet,
 
     /// max running time
@@ -25,10 +25,13 @@ pub struct MyArgs {
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn std::error::Error>> {
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
-    migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    migrate_task_to_cgroup(".", std::process::id())?;
 
     let mut proc = run_yes()?;
+
+    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
+    chrt(proc.id(), MySchedPolicy::RR(50))?;
     set_cpuset_to_pid(proc.id(), &args.cpu_set)?;
     if !is_batch_test() {
         println!("Started Yes process on PID {}\nPress Ctrl+C to stop", proc.id());

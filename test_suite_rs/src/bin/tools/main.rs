@@ -1,6 +1,7 @@
 mod realtime_bw_change;
 mod move_rt_to_root_cgroup;
 mod cgroup_setup;
+mod hrtick;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
@@ -20,6 +21,10 @@ pub enum Command {
     /// Change the runtime and period to the given control group
     #[command(name = "cgroup-setup", verbatim_doc_comment)]
     CgroupBwChange(cgroup_setup::MyArgs),
+
+    /// Enable/Disable the HRTICK_DL scheduler feature
+    #[command(name = "hrtick", verbatim_doc_comment)]
+    HRTick(hrtick::MyArgs),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         RealtimeBwChange(args) => realtime_bw_change::main(args)?,
         MoveRtTasksToRootCgroup => move_rt_to_root_cgroup::main()?,
         CgroupBwChange(args) => cgroup_setup::main(args)?,
+        HRTick(args) => hrtick::main(args)?,
     };
 
     Ok(())

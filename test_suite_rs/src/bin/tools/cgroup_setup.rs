@@ -23,6 +23,8 @@ pub struct Bandwidth {
 pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::*;
 
+    mount_cgroup_fs()?;
+
     let runtime_us = match args.bw.runtime_ms {
         Some(ms) => ms * 1000,
         None => __get_cgroup_runtime_us(&args.cgroup)?,

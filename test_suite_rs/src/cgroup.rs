@@ -247,11 +247,14 @@ pub fn delete_cgroup(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 pub fn __set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
-    std::fs::OpenOptions::new().write(true)
-        .open(format!("{path}/cpu.rt_period_us"))
-        .map_err(|err| format!("Error in opening file {path}/cpu.rt_period_us: {err}"))?
-        .write_all(format!("{period_us}").as_bytes())
-        .map_err(|err| format!("Error in writing period {period_us} us to {path}/cpu.rt_period_us: {err}"))?;
+    let old_period_us = __get_cgroup_period_us(name)?;
+    if old_period_us != period_us {
+        std::fs::OpenOptions::new().write(true)
+            .open(format!("{path}/cpu.rt_period_us"))
+            .map_err(|err| format!("Error in opening file {path}/cpu.rt_period_us: {err}"))?
+            .write_all(format!("{period_us}").as_bytes())
+            .map_err(|err| format!("Error in writing period {period_us} us to {path}/cpu.rt_period_us: {err}"))?;
+    }
 
     __println_debug(|| format!("Set period {period_us} us to {path}/cpu.rt_period_us"));
 
@@ -261,11 +264,14 @@ pub fn __set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn 
 pub fn __set_cgroup_runtime_us(name: &str, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
-    std::fs::OpenOptions::new().write(true)
-        .open(format!("{path}/cpu.rt_runtime_us"))
-        .map_err(|err| format!("Error in opening file {path}/cpu.rt_runtime_us: {err}"))?
-        .write_all(format!("{runtime_us}").as_bytes())
-        .map_err(|err| format!("Error in writing runtime {runtime_us} us to {path}/cpu.rt_runtime_us: {err}"))?;
+    let old_runtime_us = __get_cgroup_runtime_us(name)?;
+    if old_runtime_us != runtime_us {
+        std::fs::OpenOptions::new().write(true)
+            .open(format!("{path}/cpu.rt_runtime_us"))
+            .map_err(|err| format!("Error in opening file {path}/cpu.rt_runtime_us: {err}"))?
+            .write_all(format!("{runtime_us}").as_bytes())
+            .map_err(|err| format!("Error in writing runtime {runtime_us} us to {path}/cpu.rt_runtime_us: {err}"))?;
+    }
     
     __println_debug(|| format!("Set runtime {runtime_us} us to {path}/cpu.rt_runtime_us"));
 
