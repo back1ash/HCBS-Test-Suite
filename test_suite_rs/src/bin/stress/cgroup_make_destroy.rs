@@ -25,7 +25,7 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
-pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
     let mut thread_rng = rand::rng();
     let rng = rng.unwrap_or_else(|| &mut thread_rng);
 

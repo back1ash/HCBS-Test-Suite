@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{process::{get_cgroup_pids, is_pid_in_cgroup, kill, migrate_task_to_cgroup}, utils::__println_debug};
+use crate::{process::{get_cgroup_pids, is_pid_in_cgroup, kill, migrate_task_to_cgroup}, utils::{__println_debug, __shell}};
 
 pub mod prelude {
     pub use super::{
@@ -39,16 +39,6 @@ pub fn __cgroup_num_procs(name: &str) -> Result<i32, Box<dyn std::error::Error>>
     Ok(std::fs::read_to_string(format!("{path}/cgroup.procs"))
         .map_err(|err| format!("Error in reading {path}/cgroup.procs: {err}"))?
         .lines().count() as i32)
-}
-
-pub fn __shell(cmd: &str) -> Result<std::process::Output, Box<dyn std::error::Error>> {
-    use std::process::Command;
-
-    Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
-        .output()
-        .map_err(|err| format!("Error in executing \"sh -c {cmd}\": {err}").into())
 }
 
 pub fn mount_cgroup_fs() -> Result<(), Box<dyn std::error::Error>> {

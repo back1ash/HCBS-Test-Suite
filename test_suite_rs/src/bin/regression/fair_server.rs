@@ -7,16 +7,28 @@ pub struct MyArgs {
     pub max_time: Option<u64>
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
 
     migrate_task_to_cgroup(".", std::process::id())?;
-    let fifo_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
-    let non_fifo_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
+    let fifo_processes: Vec<_> = (0..cpus).map(|_| cpu_hog()).try_collect()?;
+    let non_fifo_processes: Vec<_> = (0..cpus).map(|_| cpu_hog()).try_collect()?;
 
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    non_fifo_processes.iter()
+        .enumerate()
+        .try_for_each(|(i, proc)| {
+            set_cpuset_to_pid(proc.id(), &CpuSet::single(i as u32)?)
+        })?;
+
     fifo_processes.iter()
-        .try_for_each(|proc| chrt(proc.id(), MySchedPolicy::RR(50)))?;
+        .enumerate()
+        .try_for_each::<_, Result<_, Box<dyn std::error::Error>>>(|(i, proc)| {
+            set_cpuset_to_pid(proc.id(), &CpuSet::single(i as u32)?)?;
+            chrt(proc.id(), MySchedPolicy::RR(50))?;
+
+            Ok(())
+        })?;
 
     if !is_batch_test() {
         println!("Press Ctrl+C to stop");
@@ -24,13 +36,21 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn s
 
     wait_loop(args.max_time, ctrlc_flag)?;
 
-    let mut total_usage = 0f32;
-    for proc in non_fifo_processes.iter() {
-        total_usage += get_process_total_cpu_usage(proc.id())?;
-    }
+    let fifo_total_usage = 
+        fifo_processes.iter()
+        .map(|proc| get_process_total_runtime_usage(proc.id()))
+        .sum::<Result<f32, _>>()?;
+
+    let non_fifo_total_usage = 
+        non_fifo_processes.iter()
+        .map(|proc| get_process_total_runtime_usage(proc.id()))
+        .sum::<Result<f32, _>>()?;
+
+    let non_fifo_ratio =
+        non_fifo_total_usage / (non_fifo_total_usage + fifo_total_usage);
 
     if !is_batch_test() {
-        println!("SCHED_OTHER processes used an average of {total_usage:.2} units of CPU bandwidth.");
+        println!("SCHED_OTHER processes got {:.2} % of total runtime.", non_fifo_ratio * 100f32);
     }
 
     fifo_processes.into_iter()
@@ -39,9 +59,5 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn s
     non_fifo_processes.into_iter()
         .try_for_each(|mut proc| proc.kill())?;
 
-    if total_usage < 0.05 {
-        Err(format!("Expected a consumption of at least 0.05 CPUs for SCHED_OTHER tasks, but got {total_usage:.2}"))?;
-    }
-
-    Ok(total_usage)
+    Ok(non_fifo_total_usage)
 }

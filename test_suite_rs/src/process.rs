@@ -10,6 +10,7 @@ pub mod prelude {
         get_policy,
         chrt,
         kill,
+        get_process_total_runtime_usage,
         get_process_total_cpu_usage,
     };
 }
@@ -143,6 +144,21 @@ pub fn chrt(pid: u32, policy: MySchedPolicy) -> Result<(), String> {
     Ok(())
 }
 
+pub fn get_process_total_runtime_usage(pid: u32) -> Result<f32, String> {
+    let ticks_per_second = sysconf::sysconf(sysconf::SysconfVariable::ScClkTck)
+        .map_err(|err| format!("{err:?}"))? as f32;
+
+    let stats = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+        .map_err(|err| format!("{err:?}"))?;
+    let stats: Vec<_> = stats.split_whitespace().collect();
+
+    let utime = stats.get(13).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32;
+    let stime = stats.get(14).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32;
+
+    Ok((utime + stime) / ticks_per_second)
+}
 pub fn get_process_total_cpu_usage(pid: u32) -> Result<f32, String> {
     let uptime: f32 = 
         std::fs::read_to_string("/proc/uptime")

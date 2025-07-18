@@ -28,7 +28,7 @@ fn reduce_cgroups_runtime() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<f32, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, false)?;
     reduce_cgroups_runtime()?;

@@ -17,6 +17,16 @@ pub struct CpuSet {
 }
 
 impl CpuSet {
+    pub fn single(cpu: u32) -> Result<CpuSet, Box<dyn std::error::Error>>  {
+        let all = CpuSet::all()?;
+
+        if all.cpus.contains(&cpu) {
+            Ok(CpuSet { cpus: vec![cpu] })
+        } else {
+            Err(format!("Requesting offline cpu {cpu}").into())
+        }
+    }
+
     pub fn empty() -> CpuSet {
         CpuSet { cpus: Vec::with_capacity(0) }
     }

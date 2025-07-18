@@ -23,7 +23,7 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> { 
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> { 
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
     chrt(std::process::id(), MySchedPolicy::RR(99))?;

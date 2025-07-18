@@ -1,27 +1,10 @@
-use hcbs_test_suite::{cgroup::__shell, prelude::*};
+use hcbs_test_suite::prelude::*;
 
 #[derive(clap::Parser, Debug)]
 pub struct MyArgs {
     /// bandwidth
     #[arg(short = 'b', long = "bandwidth", value_name = "[0,1]: f32")]
     bw: f32,
-}
-
-// mount -t debugfs none /sys/kernel/debug
-pub fn mount_debug_fs() -> Result<(), Box<dyn std::error::Error>> {
-    if __shell(&format!("mount | grep debugfs"))?.stdout.len() > 0 {
-        __println_debug(|| format!("DebugFS already mounted"));
-        return Ok(());
-    }
-
-    if !__shell(&format!("mount -t debugfs none /sys/kernel/debug"))?.status.success() {
-        __println_debug(|| format!("Error in mounting DebugFS"));
-        return Err(format!("Error in mounting DebugFS"))?;
-    }
-
-    __println_debug(|| format!("Mounted DebugFS"));
-
-    Ok(())
 }
 
 pub fn set_fair_server_bw(bw: f32) -> Result<(), Box<dyn std::error::Error>> {
@@ -41,9 +24,7 @@ pub fn set_fair_server_bw(bw: f32) -> Result<(), Box<dyn std::error::Error>> {
 
 pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     mount_debug_fs()?;
-    mount_cgroup_fs()?;
-
-    migrate_task_to_cgroup(".", std::process::id())?;
+    
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
     set_fair_server_bw(0f32)?;

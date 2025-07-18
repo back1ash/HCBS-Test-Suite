@@ -18,6 +18,7 @@ pub mod prelude {
     pub use super::{
         MyProcess,
         run_yes,
+        cpu_hog,
         PeriodicTaskData,
         PeriodicThreadData,
         run_periodic_thread,
@@ -46,6 +47,21 @@ impl DerefMut for MyProcess {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.process
     }
+}
+
+pub fn cpu_hog() -> Result<MyProcess, Box<dyn std::error::Error>> {
+    use std::process::*;
+
+    let cmd = local_executable_cmd("/root/test_suite", "tools")?;
+
+    let proc = Command::new(cmd)
+        .arg("hog")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+
+    Ok(MyProcess { process: proc })
 }
 
 pub fn run_yes() -> Result<MyProcess, std::io::Error> {
@@ -77,14 +93,20 @@ pub struct PeriodicThreadData {
     pub out_file: String,
 }
 
-pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dyn std::error::Error>> {
-    let cmd = std::env::var("TESTBINDIR").unwrap_or_else(|_| "/bin".to_owned()) + "/periodic_thread";
+fn local_executable_cmd(def_dir: &str, name: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let cmd = std::env::var("TESTBINDIR").unwrap_or_else(|_| def_dir.to_owned()) + "/" + name;
 
     if !std::fs::exists(&cmd)
         .map_err(|err| format!("Error in checking existance of {cmd}: {err}"))?
     {
-        Err(format!("Cannot find periodic_thread executable at {cmd}"))?;
+        Err(format!("Cannot find {name} executable at {cmd}"))?;
     }
+
+    Ok(cmd)
+}
+
+pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dyn std::error::Error>> {
+    let cmd = local_executable_cmd("/bin", "periodic_thread")?;
 
     if args.tasks.len() == 0 {
         Err(format!("Attempted executing periodic_thread with no tasks"))?;

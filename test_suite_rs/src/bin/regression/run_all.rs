@@ -38,7 +38,7 @@ impl rand::distr::Distribution<TestType> for rand::distr::StandardUniform {
     }
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
     unsafe { set_batch_test(); }
 
     let ctrlc_flag = match ctrlc_flag {
@@ -48,7 +48,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<CtrlFlag>) -> Result<(), Box<dyn st
 
     let mut rand = rand::rngs::StdRng::seed_from_u64(args.seed);
     for i in 0..args.num_tests {
-        if ctrlc_flag.load(std::sync::atomic::Ordering::Relaxed) {
+        if ctrlc_flag.is_exit() {
             break;
         }
 
