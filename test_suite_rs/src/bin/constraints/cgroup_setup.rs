@@ -15,8 +15,9 @@ fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Resu
     delete_cgroup(cgroup_name)?;
 
     if failure.is_ok() {
-        Err(format!("Cgroup creation with {runtime_us}/{period_us} should fail"))?
+        Err(format!("Cgroup \'{cgroup_name}\' creation with {runtime_us}/{period_us} did not fail"))?
     } else {
+        println!("Ok!");
         Ok(())
     }
 }
@@ -35,8 +36,9 @@ fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error:
     delete_cgroup(cgroup_name)?;
 
     if failure.is_ok() {
-        Err(format!("Cgroup with 0 runtime should not allow to run tasks"))?
+        Err(format!("Cgroup with 0 runtime must not allow to run tasks"))?
     } else {
+        println!("Ok!");
         Ok(())
     }
 }
@@ -60,6 +62,7 @@ fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::erro
     if failed.is_ok() {
         Err(format!("Cannot set runtime zero to cgroup with active tasks"))?
     } else {
+        println!("Ok!");
         Ok(())
     }
 }

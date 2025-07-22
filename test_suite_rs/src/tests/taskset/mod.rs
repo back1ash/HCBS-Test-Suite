@@ -299,8 +299,8 @@ fn get_tasksets_runs(args: &MyArgs) -> Result<Vec<TasksetRun>, Box<dyn std::erro
 
 pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
     mount_cgroup_fs()?;
-    let cgroup_period = crate::cgroup::__get_cgroup_period_us(".")?;
-    let cgroup_runtime = crate::cgroup::__get_cgroup_runtime_us(".")?;
+    let cgroup_period = crate::cgroup::get_cgroup_period_us(".")?;
+    let cgroup_runtime = crate::cgroup::get_cgroup_runtime_us(".")?;
     let cgroup_bw = cgroup_runtime as f32 / cgroup_period as f32;
     if cgroup_bw < args.max_allocable_bw {
         return Err(format!("Cannot run tasksets as the maximum allocable bandwidth is {cgroup_bw}, while you are requesting {} bw", args.max_allocable_bw).into());

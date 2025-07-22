@@ -27,12 +27,12 @@ pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     let runtime_us = match args.bw.runtime_ms {
         Some(ms) => ms * 1000,
-        None => __get_cgroup_runtime_us(&args.cgroup)?,
+        None => get_cgroup_runtime_us(&args.cgroup)?,
     };
 
     let period_us = match args.bw.period_ms {
         Some(ms) => ms * 1000,
-        None => __get_cgroup_period_us(&args.cgroup)?,
+        None => get_cgroup_period_us(&args.cgroup)?,
     };
 
     cgroup_setup(&args.cgroup, runtime_us, period_us)

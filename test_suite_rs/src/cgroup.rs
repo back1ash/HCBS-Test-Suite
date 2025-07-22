@@ -234,19 +234,34 @@ pub fn delete_cgroup(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+pub fn set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let old_period_us = get_cgroup_period_us(name)?;
+    if old_period_us != period_us {
+        __set_cgroup_period_us(name, period_us)?;
+    }
+
+    Ok(())
+}
+
 pub fn __set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
-    let old_period_us = __get_cgroup_period_us(name)?;
-    if old_period_us != period_us {
-        std::fs::OpenOptions::new().write(true)
-            .open(format!("{path}/cpu.rt_period_us"))
-            .map_err(|err| format!("Error in opening file {path}/cpu.rt_period_us: {err}"))?
-            .write_all(format!("{period_us}").as_bytes())
-            .map_err(|err| format!("Error in writing period {period_us} us to {path}/cpu.rt_period_us: {err}"))?;
-    }
+    std::fs::OpenOptions::new().write(true)
+        .open(format!("{path}/cpu.rt_period_us"))
+        .map_err(|err| format!("Error in opening file {path}/cpu.rt_period_us: {err}"))?
+        .write_all(format!("{period_us}").as_bytes())
+        .map_err(|err| format!("Error in writing period {period_us} us to {path}/cpu.rt_period_us: {err}"))?;
 
     __println_debug(|| format!("Set period {period_us} us to {path}/cpu.rt_period_us"));
+
+    Ok(())
+}
+
+pub fn set_cgroup_runtime_us(name: &str, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let old_runtime_us = get_cgroup_runtime_us(name)?;
+    if old_runtime_us != runtime_us {
+        __set_cgroup_runtime_us(name, runtime_us)?;
+    }
 
     Ok(())
 }
@@ -254,21 +269,18 @@ pub fn __set_cgroup_period_us(name: &str, period_us: u64) -> Result<(), Box<dyn 
 pub fn __set_cgroup_runtime_us(name: &str, runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
-    let old_runtime_us = __get_cgroup_runtime_us(name)?;
-    if old_runtime_us != runtime_us {
-        std::fs::OpenOptions::new().write(true)
-            .open(format!("{path}/cpu.rt_runtime_us"))
-            .map_err(|err| format!("Error in opening file {path}/cpu.rt_runtime_us: {err}"))?
-            .write_all(format!("{runtime_us}").as_bytes())
-            .map_err(|err| format!("Error in writing runtime {runtime_us} us to {path}/cpu.rt_runtime_us: {err}"))?;
-    }
+    std::fs::OpenOptions::new().write(true)
+        .open(format!("{path}/cpu.rt_runtime_us"))
+        .map_err(|err| format!("Error in opening file {path}/cpu.rt_runtime_us: {err}"))?
+        .write_all(format!("{runtime_us}").as_bytes())
+        .map_err(|err| format!("Error in writing runtime {runtime_us} us to {path}/cpu.rt_runtime_us: {err}"))?;
     
     __println_debug(|| format!("Set runtime {runtime_us} us to {path}/cpu.rt_runtime_us"));
 
     Ok(())
 }
 
-pub fn __get_cgroup_period_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
+pub fn get_cgroup_period_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     Ok(
@@ -279,7 +291,7 @@ pub fn __get_cgroup_period_us(name: &str) -> Result<u64, Box<dyn std::error::Err
     )
 }
 
-pub fn __get_cgroup_runtime_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
+pub fn get_cgroup_runtime_us(name: &str) -> Result<u64, Box<dyn std::error::Error>> {
     let path = __cgroup_path(name);
 
     Ok(
@@ -297,14 +309,14 @@ pub fn cgroup_setup(name: &str, runtime_us: u64, period_us: u64) -> Result<(), B
 
     create_cgroup(name)?;
 
-    let old_runtime_us = __get_cgroup_runtime_us(name)?;
+    let old_runtime_us = get_cgroup_runtime_us(name)?;
 
     if runtime_us > old_runtime_us {
-        __set_cgroup_period_us(name, period_us)?;
-        __set_cgroup_runtime_us(name, runtime_us)?;
+        set_cgroup_period_us(name, period_us)?;
+        set_cgroup_runtime_us(name, runtime_us)?;
     } else {
-        __set_cgroup_runtime_us(name, runtime_us)?;
-        __set_cgroup_period_us(name, period_us)?;
+        set_cgroup_runtime_us(name, runtime_us)?;
+        set_cgroup_period_us(name, period_us)?;
     }
 
     __println_debug(|| format!("Cgroup {name} setup to {runtime_us}/{period_us} reservation"));
