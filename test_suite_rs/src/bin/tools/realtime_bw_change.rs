@@ -25,6 +25,7 @@ pub fn set_fair_server_bw(bw: f32) -> Result<(), Box<dyn std::error::Error>> {
 pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     mount_debug_fs()?;
     
+    migrate_task_to_cgroup(".", std::process::id())?;
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
     set_fair_server_bw(0f32)?;
