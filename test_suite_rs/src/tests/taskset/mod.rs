@@ -1,6 +1,38 @@
 use crate::prelude::*;
 
 #[derive(clap::Parser, Debug)]
+pub struct MyArgsAll {
+    #[command(flatten)]
+    args: MyArgs,
+
+    /// directory of tasksets description
+    #[arg(short = 'i', long = "tasksets_dir", value_name = "path")]
+    pub tasksets_dir: String,
+
+    /// results/output directory
+    #[arg(short = 'o', long = "output_dir", value_name = "path")]
+    pub output_dir: String,
+}
+
+#[derive(clap::Parser, Debug)]
+pub struct MyArgsSpecific {
+    #[command(flatten)]
+    args: MyArgs,
+
+    /// taskset to run
+    #[arg(short = 'T', long = "taskset", value_name = "path")]
+    pub taskset: String,
+
+    /// cpu config to use
+    #[arg(short = 'C', long = "config", value_name = "path")]
+    pub config: String,
+
+    /// output file 
+    #[arg(short = 'O', long = "output", value_name = "path")]
+    pub output: String,
+}
+
+#[derive(clap::Parser, Debug)]
 pub struct MyArgs {
     /// cgroup's name
     #[arg(short = 'c', long = "cgroup", default_value = "g0", value_name = "name")]
@@ -18,14 +50,6 @@ pub struct MyArgs {
     /// number of instances per job
     #[arg(short = 'j', long = "job", value_name = "u64", default_value = "200")]
     pub num_instances_per_job: u64,
-
-    /// directory of tasksets description
-    #[arg(short = 'i', long = "tasksets_dir", value_name = "path")]
-    pub tasksets_dir: String,
-
-    /// results/output directory
-    #[arg(short = 'o', long = "output_dir", value_name = "path")]
-    pub output_dir: String,
 }
 
 pub struct MyResult {
@@ -75,7 +99,7 @@ struct TasksetRunResultInstance {
 
 #[derive(Debug)]
 #[derive(Clone)]
-struct TasksetRunResult {
+pub struct TasksetRunResult {
     taskset: Taskset,
     config: TasksetConfig,
     results: Vec<TasksetRunResultInstance>,
@@ -229,7 +253,18 @@ fn can_run_taskset(run: &TasksetRun, args: &MyArgs) -> bool {
     true
 }
 
-fn get_tasksets_runs(args: &MyArgs) -> Result<Vec<TasksetRun>, Box<dyn std::error::Error>> {
+fn get_taskset_run(taskset: &str, config: &str, output_file: &str) -> Result<TasksetRun, Box<dyn std::error::Error>> {
+    let taskset = parse_taskset_file(taskset)?;
+    let config = parse_config_file(config)?;
+
+    Ok(TasksetRun {
+        tasks: taskset,
+        config,
+        output_file: output_file.to_owned(),
+    })
+}
+
+fn get_tasksets_runs(args: &MyArgsAll) -> Result<Vec<TasksetRun>, Box<dyn std::error::Error>> {
     let tasksets_dir = &args.tasksets_dir;
 
     let mut taskset_runs = Vec::new();
@@ -297,7 +332,7 @@ fn get_tasksets_runs(args: &MyArgs) -> Result<Vec<TasksetRun>, Box<dyn std::erro
     Ok(taskset_runs)
 }
 
-pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+fn check_root_cgroups(args: &MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     mount_cgroup_fs()?;
     let cgroup_period = crate::cgroup::get_cgroup_period_us(".")?;
     let cgroup_runtime = crate::cgroup::get_cgroup_runtime_us(".")?;
@@ -306,19 +341,25 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
         return Err(format!("Cannot run tasksets as the maximum allocable bandwidth is {cgroup_bw}, while you are requesting {} bw", args.max_allocable_bw).into());
     }
 
+    Ok(())
+}
+
+pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
+    check_root_cgroups(&args.args)?;
+
     // run tasksets
     let taskset_runs = get_tasksets_runs(&args)?;
 
     // taskset first insights
     let total_expected_runtime_us: u64 = taskset_runs.iter()
-        .filter(|run| can_run_taskset(run, &args))
+        .filter(|run| can_run_taskset(run, &args.args))
         .filter(|run| !std::path::Path::new(&run.output_file).exists())
-        .map(|run| compute_insights(run, &args).expected_runtime_us)
+        .map(|run| compute_insights(run, &args.args).expected_runtime_us)
         .sum();
 
     let total_runs = taskset_runs.len() as u64;
     let todo_runs = taskset_runs.iter()
-        .filter(|run| can_run_taskset(run, &args))
+        .filter(|run| can_run_taskset(run, &args.args))
         .filter(|run| !std::path::Path::new(&run.output_file).exists())
         .count() as u64;
 
@@ -328,7 +369,7 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
     let mut failures = 0u64;
     let mut results = Vec::with_capacity(taskset_runs.len());
     for run in taskset_runs.into_iter() {
-        if !can_run_taskset(&run, &args) {
+        if !can_run_taskset(&run, &args.args) {
             println!("- Skipping taskset {}, config {}: cannot run on current config", run.tasks.name, run.config.name);
             continue;
         }
@@ -347,11 +388,11 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
                     results: parse_taskset_results(&run.output_file)?,
                 })
             } else {
-                let insights = compute_insights(&run, &args);
+                let insights = compute_insights(&run, &args.args);
                 println!("* Running taskset {}, config {}: expected runtime {:.2} secs",
                     run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
 
-                run_taskset(run, &args)
+                run_taskset(run, &args.args)
             }?;
 
         let insights = compute_result_insights(&result);
@@ -372,13 +413,39 @@ pub fn run_taskset_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::E
     Ok(MyResult { results })
 }
 
-pub fn read_results_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::Error>> {
+pub fn run_taskset_single(args: MyArgsSpecific) -> Result<TasksetRunResult, Box<dyn std::error::Error>> {
+    check_root_cgroups(&args.args)?;
+
+    let run = get_taskset_run(&args.taskset, &args.config, &args.output)?;
+
+    let result =
+        if std::path::Path::new(&run.output_file).exists() {
+            println!("* Skipping taskset {}, config {}: already run",
+                run.tasks.name, run.config.name);
+
+            Ok(TasksetRunResult {
+                taskset: run.tasks,
+                config: run.config,
+                results: parse_taskset_results(&run.output_file)?,
+            })
+        } else {
+            let insights = compute_insights(&run, &args.args);
+            println!("* Running taskset {}, config {}: expected runtime {:.2} secs",
+                run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
+
+            run_taskset(run, &args.args)
+        }?;
+
+    Ok(result)
+}
+
+pub fn read_results_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
     let taskset_runs = get_tasksets_runs(&args)?;
 
     // taskset first insights
     let total_runs = taskset_runs.len() as u64;
     let todo_runs = taskset_runs.iter()
-        .filter(|run| can_run_taskset(run, &args))
+        .filter(|run| can_run_taskset(run, &args.args))
         .filter(|run| std::path::Path::new(&run.output_file).exists())
         .count() as u64;
 
@@ -388,7 +455,7 @@ pub fn read_results_array(args: MyArgs) -> Result<MyResult, Box<dyn std::error::
     let mut failures = 0u64;
     let mut results = Vec::with_capacity(taskset_runs.len());
     for run in taskset_runs.into_iter() {
-        if !can_run_taskset(&run, &args) {
+        if !can_run_taskset(&run, &args.args) {
             continue;
         }
 

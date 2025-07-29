@@ -26,7 +26,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
     let mut proc = run_yes()?;
 
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
-    migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
+    migrate_task_to_cgroup(&args.cgroup, proc.id())?;
     chrt(proc.id(), MySchedPolicy::RR(50))?;
 
     if !is_batch_test() {
