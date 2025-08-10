@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from typing import Any
 import numpy
 
@@ -230,7 +230,7 @@ f'''<system os_scheduler="DM" min_period="0" max_period="0">
 
         return None
 
-    carts_bin = "../build/CARTS/carts-source/bin"
+    carts_bin = f"{os.environ["BUILD"]}/SchedTest/Carts/carts-source/bin"
 
     out_data = ""
     with NamedTemporaryFile(delete_on_close=False) as input, NamedTemporaryFile(delete_on_close=False) as output:

@@ -1,135 +1,141 @@
 .PHONY: all core install cgroup cgroup_v1 cgroup_v2 periodic busybox tasksets clean
 
-all: build/core.gz build/install.tar.gz
+BUILD?=./build
 
-core: build/core.gz
-install: build/install.tar.gz
+all: $(BUILD)/core.gz $(BUILD)/install.tar.gz
 
-build/core.gz: build/initrd.gz build/initrd-busybox.gz build/initrd-periodic.gz build/initrd-tasksets.gz build/initrd-scripts.gz
-	rm -f build/core.gz
-	touch build/core.gz
-	cat ./build/initrd.gz >> ./build/core.gz
-	cat ./build/initrd-busybox.gz >> ./build/core.gz
-	cat ./build/initrd-periodic.gz >> ./build/core.gz
-	cat ./build/initrd-tasksets.gz >> ./build/core.gz
-	cat ./build/initrd-scripts.gz >> ./build/core.gz
+core: $(BUILD)/core.gz
+install: $(BUILD)/install.tar.gz
+
+$(BUILD)/core.gz: $(BUILD)/initrd.gz $(BUILD)/initrd-busybox.gz $(BUILD)/initrd-periodic.gz $(BUILD)/initrd-tasksets.gz $(BUILD)/initrd-scripts.gz
+	rm -f $(BUILD)/core.gz
+	touch $(BUILD)/core.gz
+	cat $(BUILD)/initrd.gz >> $(BUILD)/core.gz
+	cat $(BUILD)/initrd-busybox.gz >> $(BUILD)/core.gz
+	cat $(BUILD)/initrd-periodic.gz >> $(BUILD)/core.gz
+	cat $(BUILD)/initrd-tasksets.gz >> $(BUILD)/core.gz
+	cat $(BUILD)/initrd-scripts.gz >> $(BUILD)/core.gz
 
 
-build/install.tar.gz: build/install-periodic.tar.gz build/install-test.tar.gz build/install-tasksets.tar.gz build/install-scripts.tar.gz
-	touch build/install.tar.gz
-	cat build/install-periodic.tar.gz >> build/install.tar.gz
-	cat build/install-test.tar.gz >> build/install.tar.gz
-	cat build/install-tasksets.tar.gz >> build/install.tar.gz
-	cat build/install-scripts.tar.gz >> build/install.tar.gz
-	mkdir -p build/install
-	cd build/install && tar -ixvf ../install.tar.gz
-	cd build/install && tar -czvf ../install.tar.gz .
-	rm -r build/install
+$(BUILD)/install.tar.gz: $(BUILD)/install-periodic.tar.gz $(BUILD)/install-test.tar.gz $(BUILD)/install-tasksets.tar.gz $(BUILD)/install-scripts.tar.gz
+	touch $(BUILD)/install.tar.gz
+	cat $(BUILD)/install-periodic.tar.gz >> $(BUILD)/install.tar.gz
+	cat $(BUILD)/install-test.tar.gz >> $(BUILD)/install.tar.gz
+	cat $(BUILD)/install-tasksets.tar.gz >> $(BUILD)/install.tar.gz
+	cat $(BUILD)/install-scripts.tar.gz >> $(BUILD)/install.tar.gz
+	mkdir -p $(BUILD)/install
+	cd $(BUILD)/install && tar -ixvf ../install.tar.gz
+	cd $(BUILD)/install && tar -czvf ../install.tar.gz .
+	rm -r $(BUILD)/install
 
 # periodic task runner
-periodic: build/initrd-periodic.gz
+periodic: $(BUILD)/initrd-periodic.gz
 
-build/PeriodicTask/.keep: build/.keep
-	if [ ! -d ./build/PeriodicTask ]; then\
-		git init ./build/PeriodicTask;\
-		git -C ./build/PeriodicTask fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git 8b1839d2c2207cbb7e80f25e9d6773bbeab6630e;\
-		git -C ./build/PeriodicTask checkout FETCH_HEAD;\
-		sed -i '18 c#define MAX_TH 50' ./build/PeriodicTask/periodic_thread.c;\
+$(BUILD)/PeriodicTask/.keep: $(BUILD)/.keep
+	if [ ! -d $(BUILD)/PeriodicTask ]; then\
+		git init $(BUILD)/PeriodicTask;\
+		git -C $(BUILD)/PeriodicTask fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git 8b1839d2c2207cbb7e80f25e9d6773bbeab6630e;\
+		git -C $(BUILD)/PeriodicTask checkout FETCH_HEAD;\
+		sed -i '18 c#define MAX_TH 50' $(BUILD)/PeriodicTask/periodic_thread.c;\
 	fi
-	make -C ./build/PeriodicTask periodic_task
-	make -C ./build/PeriodicTask periodic_thread
-	touch build/PeriodicTask/.keep
+	make -C $(BUILD)/PeriodicTask periodic_task
+	make -C $(BUILD)/PeriodicTask periodic_thread
+	touch $(BUILD)/PeriodicTask/.keep
 
-build/initrd-periodic.gz: build/PeriodicTask/.keep
-	mkdir -p ./build/periodic-task-initrd/bin
-	cp ./build/PeriodicTask/periodic_task ./build/periodic-task-initrd/bin/periodic_task
-	cp ./build/PeriodicTask/periodic_thread ./build/periodic-task-initrd/bin/periodic_thread
-	cd ./build/periodic-task-initrd && find . | cpio -o -H newc | gzip > ../initrd-periodic.gz
+$(BUILD)/initrd-periodic.gz: $(BUILD)/PeriodicTask/.keep
+	mkdir -p $(BUILD)/periodic-task-initrd/bin
+	cp $(BUILD)/PeriodicTask/periodic_task $(BUILD)/periodic-task-initrd/bin/periodic_task
+	cp $(BUILD)/PeriodicTask/periodic_thread $(BUILD)/periodic-task-initrd/bin/periodic_thread
+	cd $(BUILD)/periodic-task-initrd && find . | cpio -o -H newc | gzip > ../initrd-periodic.gz
 
-build/install-periodic.tar.gz: build/PeriodicTask/.keep
-	mkdir -p ./build/periodic-task-install/bin
-	cp ./build/PeriodicTask/periodic_task ./build/periodic-task-install/bin/periodic_task
-	cp ./build/PeriodicTask/periodic_thread ./build/periodic-task-install/bin/periodic_thread
-	cd build/periodic-task-install && tar -czvf ../install-periodic.tar.gz bin/
+$(BUILD)/install-periodic.tar.gz: $(BUILD)/PeriodicTask/.keep
+	mkdir -p $(BUILD)/periodic-task-install/bin
+	cp $(BUILD)/PeriodicTask/periodic_task $(BUILD)/periodic-task-install/bin/periodic_task
+	cp $(BUILD)/PeriodicTask/periodic_thread $(BUILD)/periodic-task-install/bin/periodic_thread
+	cd $(BUILD)/periodic-task-install && tar -czvf ../install-periodic.tar.gz bin/
 
 # busybox
-busybox: build/initrd-busybox.gz
+busybox: $(BUILD)/initrd-busybox.gz
 
-build/initrd-busybox.gz: build/.keep
-	mkdir -p ./build/busybox
+$(BUILD)/initrd-busybox.gz: $(BUILD)/.keep
+	mkdir -p $(BUILD)/busybox
 	# get busybox builder and update the config
-	if [ ! -d ./build/BuildCore ]; then\
-		git init ./build/BuildCore;\
-		git -C ./build/BuildCore fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/BuildCore.git 715962453dc89fb694f1193278d9f45304f03741;\
-		git -C ./build/BuildCore checkout FETCH_HEAD;\
-		sed -i '967 cCONFIG_TC=n' ./build/BuildCore/Configs/config-busybox-3;\
+	if [ ! -d $(BUILD)/BuildCore ]; then\
+		git init $(BUILD)/BuildCore;\
+		git -C $(BUILD)/BuildCore fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/BuildCore.git 715962453dc89fb694f1193278d9f45304f03741;\
+		git -C $(BUILD)/BuildCore checkout FETCH_HEAD;\
+		sed -i '967 cCONFIG_TC=n' $(BUILD)/BuildCore/Configs/config-busybox-3;\
+		sed -i '11 cSUDOVER=1.9.17p2' $(BUILD)/BuildCore/buildcore.sh;\
 	fi
-	cd ./build/busybox && sh $(shell pwd)/build/BuildCore/buildcore.sh $(shell pwd)/build/initrd-busybox.gz
+	cd $(BUILD)/busybox && sh $(BUILD)/BuildCore/buildcore.sh $(BUILD)/initrd-busybox.gz
 
 # tasksets
-tasksets: build/initrd-tasksets.gz build/install-tasksets.tar.gz
+tasksets: $(BUILD)/initrd-tasksets.gz $(BUILD)/install-tasksets.tar.gz
 
-build/tasksets/.keep: build/.keep
-	mkdir -p build/tasksets
-	touch build/tasksets/.keep
-	# get CARTS (?)	
-	cd taskset_gen && python -B taskgen.py -o ../build/tasksets/root/tasksets
+$(BUILD)/tasksets/.keep: $(BUILD)/.keep
+	mkdir -p $(BUILD)/tasksets
+	touch $(BUILD)/tasksets/.keep
+	# get CARTS
+	if [ ! -d $(BUILD)/SchedTest ]; then\
+		tar -C $(BUILD) -xf $(shell pwd)/sched_test.tgz;\
+	fi
+	cd taskset_gen && BUILD=$(BUILD) python -B taskgen.py -o $(BUILD)/tasksets/root/tasksets
 
-build/initrd-tasksets.gz: build/tasksets/.keep
-	cd ./build/tasksets && find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
+$(BUILD)/initrd-tasksets.gz: $(BUILD)/tasksets/.keep
+	cd $(BUILD)/tasksets && find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
 
-build/install-tasksets.tar.gz: build/tasksets/.keep
-	cd build/tasksets/root && tar -czvf ../../install-tasksets.tar.gz .
+$(BUILD)/install-tasksets.tar.gz: $(BUILD)/tasksets/.keep
+	cd $(BUILD)/tasksets/root && tar -czvf ../../install-tasksets.tar.gz .
 
 # test software
-cgroup: build/initrd.gz build/install-test.tar.gz
+cgroup: $(BUILD)/initrd.gz $(BUILD)/install-test.tar.gz
 
-build/initrd.gz: cgroup_v1 cgroup_v2
-	rm -f ./build/mnt/root/test_suite
-	ln -s /root/test_suite_v2 ./build/mnt/root/test_suite
-	cd ./build/mnt && find . | cpio -o -H newc | gzip > ../initrd.gz
+$(BUILD)/initrd.gz: cgroup_v1 cgroup_v2
+	rm -f $(BUILD)/mnt/root/test_suite
+	ln -s /root/test_suite_v2 $(BUILD)/mnt/root/test_suite
+	cd $(BUILD)/mnt && find . | cpio -o -H newc | gzip > ../initrd.gz
 
-build/install-test.tar.gz: cgroup_v1 cgroup_v2
-	cd build/mnt/root/ && tar -czvf ../../install-test.tar.gz test_suite_v2/ test_suite_v1/
+$(BUILD)/install-test.tar.gz: cgroup_v1 cgroup_v2
+	cd $(BUILD)/mnt/root/ && tar -czvf ../../install-test.tar.gz test_suite_v2/ test_suite_v1/
 
-cgroup_v2: build/mnt/.keep build/.keep
-	mkdir -p ./build/test_suite/v2
-	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' \
+cgroup_v2: $(BUILD)/mnt/.keep $(BUILD)/.keep
+	mkdir -p $(BUILD)/test_suite/v2
+	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
 		cargo build --release --features cgroup_v2 --target x86_64-unknown-linux-gnu
-	RUSTFLAGS='-C target-feature=+crt-static' \
-		cargo install --path ./test_suite_rs --root ./build/test_suite/v2 \
+	RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v2 \
 		--no-track --frozen --features cgroup_v2 --target x86_64-unknown-linux-gnu
-	mkdir -p ./build/mnt/root/test_suite_v2
-	cp -r ./build/test_suite/v2/bin/* ./build/mnt/root/test_suite_v2/
-	rm -rf ./build/test_suite/v2
+	mkdir -p $(BUILD)/mnt/root/test_suite_v2
+	cp -r $(BUILD)/test_suite/v2/bin/* $(BUILD)/mnt/root/test_suite_v2/
+	rm -rf $(BUILD)/test_suite/v2
 
-cgroup_v1: build/mnt/.keep build/.keep
-	mkdir -p ./build/test_suite/v1
-	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' \
+cgroup_v1: $(BUILD)/mnt/.keep $(BUILD)/.keep
+	mkdir -p $(BUILD)/test_suite/v1
+	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
 		cargo build --release --target x86_64-unknown-linux-gnu
-	RUSTFLAGS='-C target-feature=+crt-static' \
-		cargo install --path ./test_suite_rs --root ./build/test_suite/v1 \
+	RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v1 \
 		--no-track --frozen --target x86_64-unknown-linux-gnu
-	mkdir -p ./build/mnt/root/test_suite_v1
-	cp -r ./build/test_suite/v1/bin/* ./build/mnt/root/test_suite_v1/
-	rm -rf ./build/test_suite/v1
+	mkdir -p $(BUILD)/mnt/root/test_suite_v1
+	cp -r $(BUILD)/test_suite/v1/bin/* $(BUILD)/mnt/root/test_suite_v1/
+	rm -rf $(BUILD)/test_suite/v1
 
 # extra scripts
-build/initrd-scripts.gz:
-	cd scripts && find . | cpio -o -H newc | gzip > ../build/initrd-scripts.gz
+$(BUILD)/initrd-scripts.gz:
+	cd scripts && find . | cpio -o -H newc | gzip > $(BUILD)/initrd-scripts.gz
 
-build/install-scripts.tar.gz:
-	cd scripts && tar -czvf ../build/install-scripts.tar.gz .
+$(BUILD)/install-scripts.tar.gz:
+	cd scripts && tar -czvf $(BUILD)/install-scripts.tar.gz .
 
 # generic
-build/mnt/.keep:
-	mkdir -p ./build/mnt
-	cp -ur ./mnt ./build/
+$(BUILD)/mnt/.keep:
+	mkdir -p $(BUILD)/mnt
+	cp -ur ./mnt $(BUILD)/
 
-build/.keep:
-	mkdir -p ./build
-	touch ./build/.keep
+$(BUILD)/.keep:
+	mkdir -p $(BUILD)
+	touch $(BUILD)/.keep
 
 clean:
-	rm -rf ./build
+	rm -rf $(BUILD)
 	cd test_suite_rs && cargo clean
