@@ -49,6 +49,10 @@ impl CpuSet {
             cpus: all.cpus.into_iter().take(num_cpus as usize).collect()
         })
     }
+
+    pub fn num_cpus(&self) -> usize {
+        self.cpus.len()
+    }
 }
 
 impl FromStr for CpuSet {

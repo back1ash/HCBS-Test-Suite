@@ -7,7 +7,30 @@ pub struct MyArgs {
     pub max_time: Option<u64>
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn std::error::Error>> {
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    let fair_server_bw = get_fair_server_avg_bw()?;
+    let error = 0.01f64; // 1% error
+
+    batch_test_header("fair_server", "regression");
+    batch_test_result(
+        main(args, ctrlc_flag)
+        .and_then(|used_bw| {
+            if f64::abs(used_bw - fair_server_bw) < error {
+                Ok(())
+            } else {
+                Err(format!("Expected SCHED_OTHER tasks to use {:.2} % of total runtime, but used {:.2} %", used_bw * 100.0, fair_server_bw * 100.0).into())
+            }
+        })
+    )?;
+
+    Ok(())
+}
+
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
 
     migrate_task_to_cgroup(".", std::process::id())?;
@@ -39,18 +62,18 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
     let fifo_total_usage = 
         fifo_processes.iter()
         .map(|proc| get_process_total_runtime_usage(proc.id()))
-        .sum::<Result<f32, _>>()?;
+        .sum::<Result<f64, _>>()?;
 
     let non_fifo_total_usage = 
         non_fifo_processes.iter()
         .map(|proc| get_process_total_runtime_usage(proc.id()))
-        .sum::<Result<f32, _>>()?;
+        .sum::<Result<f64, _>>()?;
 
     let non_fifo_ratio =
         non_fifo_total_usage / (non_fifo_total_usage + fifo_total_usage);
 
     if !is_batch_test() {
-        println!("SCHED_OTHER processes got {:.2} % of total runtime.", non_fifo_ratio * 100f32);
+        println!("SCHED_OTHER processes got {:.2} % of total runtime.", non_fifo_ratio * 100f64);
     }
 
     fifo_processes.into_iter()
@@ -59,5 +82,5 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
     non_fifo_processes.into_iter()
         .try_for_each(|mut proc| proc.kill())?;
 
-    Ok(non_fifo_total_usage)
+    Ok(non_fifo_ratio)
 }

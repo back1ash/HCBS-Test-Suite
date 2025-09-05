@@ -45,6 +45,7 @@ impl rand::distr::Distribution<TestType> for rand::distr::StandardUniform {
 }
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    let run_as_batch_test = is_batch_test();
     unsafe { set_batch_test(); }
 
     let ctrlc_flag = match ctrlc_flag {
@@ -64,13 +65,13 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
         let runtime_min_ms = 20;
         let runtime_half_ms = (runtime_max_ms + runtime_min_ms) / 2;
 
-        println!("Running test {i}/{0}: {test_type:?}", args.num_tests);
+        if !run_as_batch_test { println!("Running test {i}/{0}: {test_type:?}", args.num_tests); }
         match test_type {
             TestType::CgroupMakeDestroy => {
                 let _runtime_min_ms = rand.random_range(runtime_min_ms..=runtime_half_ms);
                 let _runtime_max_ms = rand.random_range(runtime_half_ms..=runtime_max_ms);
 
-                crate::cgroup_make_destroy::main(crate::cgroup_make_destroy::MyArgs {
+                crate::cgroup_make_destroy::batch_runner(crate::cgroup_make_destroy::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime_min_ms: _runtime_min_ms,
                     runtime_max_ms: _runtime_max_ms,
@@ -84,7 +85,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
                 let runtime_ms = rand.random_range(runtime_min_ms..runtime_max_ms);
                 let change_period = rand.random_range(0.5f32..=3f32);
 
-                crate::change_pinning::main(crate::change_pinning::MyArgs {
+                crate::change_pinning::batch_runner(crate::change_pinning::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime_ms,
                     period_ms,
@@ -99,7 +100,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
                 let runtime_ms = rand.random_range(runtime_min_ms..runtime_max_ms);
                 let change_period = rand.random_range(0.5f32..=3f32);
 
-                crate::change_priority::main(crate::change_priority::MyArgs {
+                crate::change_priority::batch_runner(crate::change_priority::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime_ms,
                     period_ms,
@@ -113,7 +114,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
                 let runtime2_ms = rand.random_range(runtime_half_ms..=runtime_max_ms);
                 let change_period = rand.random_range(0.5f32..=3f32);
 
-                crate::change_cgroup_runtime::main(crate::change_cgroup_runtime::MyArgs {
+                crate::change_cgroup_runtime::batch_runner(crate::change_cgroup_runtime::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime1_ms,
                     runtime2_ms,
@@ -128,7 +129,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
                 let runtime_ms = rand.random_range(runtime_min_ms..runtime_max_ms);
                 let change_period = rand.random_range(0.5f32..=3f32);
 
-                crate::migrate::main(crate::migrate::MyArgs {
+                crate::migrate::batch_runner(crate::migrate::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime_ms,
                     period_ms,
@@ -142,7 +143,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
                 let runtime_ms = rand.random_range(runtime_min_ms..runtime_max_ms);
                 let change_period = rand.random_range(0.5f32..=3f32);
 
-                crate::switch_class::main(crate::switch_class::MyArgs {
+                crate::switch_class::batch_runner(crate::switch_class::MyArgs {
                     cgroup: args.cgroup.clone(),
                     runtime_ms,
                     period_ms,

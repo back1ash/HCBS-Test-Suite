@@ -144,23 +144,23 @@ pub fn chrt(pid: u32, policy: MySchedPolicy) -> Result<(), String> {
     Ok(())
 }
 
-pub fn get_process_total_runtime_usage(pid: u32) -> Result<f32, String> {
+pub fn get_process_total_runtime_usage(pid: u32) -> Result<f64, String> {
     let ticks_per_second = sysconf::sysconf(sysconf::SysconfVariable::ScClkTck)
-        .map_err(|err| format!("{err:?}"))? as f32;
+        .map_err(|err| format!("{err:?}"))? as f64;
 
     let stats = std::fs::read_to_string(format!("/proc/{pid}/stat"))
         .map_err(|err| format!("{err:?}"))?;
     let stats: Vec<_> = stats.split_whitespace().collect();
 
     let utime = stats.get(13).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
-        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32;
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f64;
     let stime = stats.get(14).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
-        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32;
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f64;
 
     Ok((utime + stime) / ticks_per_second)
 }
-pub fn get_process_total_cpu_usage(pid: u32) -> Result<f32, String> {
-    let uptime: f32 = 
+pub fn get_process_total_cpu_usage(pid: u32) -> Result<f64, String> {
+    let uptime: f64 = 
         std::fs::read_to_string("/proc/uptime")
                 .map_err(|err| format!("{err:?}"))?
             .split_whitespace().nth(0).ok_or("Error in reading /proc/uptime".to_owned())?
@@ -172,14 +172,14 @@ pub fn get_process_total_cpu_usage(pid: u32) -> Result<f32, String> {
     let stats: Vec<_> = stats.split_whitespace().collect();
 
     let ticks_per_second = sysconf::sysconf(sysconf::SysconfVariable::ScClkTck)
-        .map_err(|err| format!("{err:?}"))? as f32;
+        .map_err(|err| format!("{err:?}"))? as f64;
 
     let utime = stats.get(13).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
-        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32 / ticks_per_second;
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f64 / ticks_per_second;
     let stime = stats.get(14).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
-        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32 / ticks_per_second;
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f64 / ticks_per_second;
     let start_time = stats.get(21).ok_or("Error in reading /proc/<pid>/stat".to_owned())?
-        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f32 / ticks_per_second;
+        .parse::<isize>().map_err(|err| format!("{err:?}"))? as f64 / ticks_per_second;
 
     let elapsed = uptime - start_time;
     Ok((utime + stime)/ elapsed)

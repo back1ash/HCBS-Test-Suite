@@ -4,7 +4,9 @@ use hcbs_test_suite::prelude::*;
 fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::{__set_cgroup_period_us, __set_cgroup_runtime_us};
 
-    println!("Cgroup \'{cgroup_name}\' setup with {runtime_us}/{period_us} runtime/period should fail.");
+    if !is_batch_test() {
+        println!("Cgroup \'{cgroup_name}\' setup with {runtime_us}/{period_us} runtime/period should fail.");
+    }
 
     create_cgroup(cgroup_name)?;
 
@@ -17,13 +19,15 @@ fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Resu
     if failure.is_ok() {
         Err(format!("Cgroup \'{cgroup_name}\' creation with {runtime_us}/{period_us} did not fail"))?
     } else {
-        println!("Ok!");
+        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
 
 fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Task migration to cgroup \'{cgroup_name}\' with runtime 0 should fail.");
+    if !is_batch_test() {
+        println!("Task migration to cgroup \'{cgroup_name}\' with runtime 0 should fail.");
+    }
 
     cgroup_setup(cgroup_name, 0, 100_000)?;
     let mut yes = run_yes()?;
@@ -38,13 +42,15 @@ fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error:
     if failure.is_ok() {
         Err(format!("Cgroup with 0 runtime must not allow to run tasks"))?
     } else {
-        println!("Ok!");
+        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
 
 fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Zeroing runtime to cgroup \'{cgroup_name}\' with active task should fail.");
+    if !is_batch_test() {
+        println!("Zeroing runtime to cgroup \'{cgroup_name}\' with active task should fail.");
+    }
 
     use hcbs_test_suite::cgroup::__set_cgroup_runtime_us;
 
@@ -62,7 +68,7 @@ fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::erro
     if failed.is_ok() {
         Err(format!("Cannot set runtime zero to cgroup with active tasks"))?
     } else {
-        println!("Ok!");
+        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
@@ -73,29 +79,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     migrate_task_to_cgroup(".", std::process::id())?;
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
 
-    mount_cgroup_fs()?;
+    // batch test utils
+    let test_category = "constraints";
 
     // cannot set period to zero
-    cgroup_time_tests("g0", 0, 0)?;
+    batch_test_header("runtime_0_period_0", test_category);
+    batch_test_result(cgroup_time_tests("g0", 0, 0))?;
 
     // given DL_SCALE = 10, runtime must be at least 1024ns, i.e. > 1us
-    cgroup_time_tests("g0", 1, 100_000)?;
+    batch_test_header("runtime_too_small", test_category);
+    batch_test_result(cgroup_time_tests("g0", 1, 100_000))?;
 
     // cannot set runtime greater than period
-    cgroup_time_tests("g0", 110_000, 100_000)?;
+    batch_test_header("runtime_gt_period", test_category);
+    batch_test_result(cgroup_time_tests("g0", 110_000, 100_000))?;
 
     // period cannot be greater than ~2^53us (i.e. >=2^63ns, which is a negative integer in signed 64-bit)
-    cgroup_time_tests("g0", 110_000, (2<<63) / 1000 + 1)?;
+    batch_test_header("period_too_big", test_category);
+    batch_test_result(cgroup_time_tests("g0", 110_000, (2<<63) / 1000 + 1))?;
 
     // adding task to cgroup with runtime zero
-    add_task_to_runtime_zero("g0")?;
+    batch_test_header("runtime_0_add_task", test_category);
+    batch_test_result(add_task_to_runtime_zero("g0"))?;
 
     // set runtime to zero of running cgroup
-    set_runtime_zero_to_active("g0")?;
+    batch_test_header("runtime_0_while_running", test_category);
+    batch_test_result(set_runtime_zero_to_active("g0"))?;
 
     // change runtime/period of parent with child with active tasks
 
-    println!("All tests passed!");
+    if !is_batch_test() { println!("All tests passed!"); }
 
     Ok(())
 }

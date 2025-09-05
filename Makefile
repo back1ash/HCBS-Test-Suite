@@ -121,11 +121,13 @@ cgroup_v1: $(BUILD)/mnt/.keep $(BUILD)/.keep
 	rm -rf $(BUILD)/test_suite/v1
 
 # extra scripts
-$(BUILD)/initrd-scripts.gz:
+SCRIPTS = $(wildcard scripts/*)
+
+$(BUILD)/initrd-scripts.gz: $(SCRIPTS)
 	cd scripts && find . | cpio -o -H newc | gzip > $(BUILD)/initrd-scripts.gz
 
-$(BUILD)/install-scripts.tar.gz:
-	cd scripts && tar -czvf $(BUILD)/install-scripts.tar.gz .
+$(BUILD)/install-scripts.tar.gz: $(SCRIPTS)
+	cd scripts/root && tar -czvf $(BUILD)/install-scripts.tar.gz .
 
 # generic
 $(BUILD)/mnt/.keep:

@@ -9,10 +9,10 @@ pub mod prelude {
         delete_cgroup,
         cgroup_setup,
         MyCgroup,
-        get_system_rt_period,
-        get_system_rt_runtime,
-        set_system_rt_period,
-        set_system_rt_runtime
+        get_system_rt_period_us,
+        get_system_rt_runtime_us,
+        set_system_rt_period_us,
+        set_system_rt_runtime_us
     };
 }
 
@@ -153,7 +153,7 @@ pub fn __enable_cpu_contoller_v2_recursive(name: &str) -> Result<(), Box<dyn std
     Ok(())
 }
 
-pub fn get_system_rt_period() -> Result<u64, Box<dyn std::error::Error>> {
+pub fn get_system_rt_period_us() -> Result<u64, Box<dyn std::error::Error>> {
     Ok(
         std::fs::read_to_string("/proc/sys/kernel/sched_rt_period_us")
             .map_err(|err| format!("Error in reading from /proc/sys/kernel/sched_rt_period_us: {err}"))
@@ -162,7 +162,7 @@ pub fn get_system_rt_period() -> Result<u64, Box<dyn std::error::Error>> {
     )
 }
 
-pub fn get_system_rt_runtime() -> Result<u64, Box<dyn std::error::Error>> {
+pub fn get_system_rt_runtime_us() -> Result<u64, Box<dyn std::error::Error>> {
     Ok(
         std::fs::read_to_string("/proc/sys/kernel/sched_rt_runtime_us")
             .map_err(|err| format!("Error in reading from /proc/sys/kernel/sched_rt_runtime_us: {err}"))
@@ -171,7 +171,7 @@ pub fn get_system_rt_runtime() -> Result<u64, Box<dyn std::error::Error>> {
     )
 }
 
-pub fn set_system_rt_period(period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn set_system_rt_period_us(period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write("/proc/sys/kernel/sched_rt_period_us", format!("{period_us}"))
         .map_err(|err| format!("Error in writing period {period_us} us to /proc/sys/kernel/sched_rt_runtime_us: {err}"))?;
 
@@ -180,7 +180,7 @@ pub fn set_system_rt_period(period_us: u64) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub fn set_system_rt_runtime(runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn set_system_rt_runtime_us(runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write("/proc/sys/kernel/sched_rt_runtime_us", format!("{runtime_us}"))
         .map_err(|err| format!("Error in writing runtime {runtime_us} us to /proc/sys/kernel/sched_rt_runtime_us: {err}"))?;
     
@@ -221,7 +221,7 @@ pub fn delete_cgroup(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     if __cgroup_num_procs(name)? > 0 {
         let procs = get_cgroup_pids(name)?;
-        println!("Cgroup {name} has active processes: {procs:?}");
+        __println_debug(|| format!("Cgroup {name} has active processes: {procs:?}"));
         return Err(format!("Cgroup {name} has active processes"))?;
     }
 

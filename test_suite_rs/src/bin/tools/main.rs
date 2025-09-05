@@ -2,6 +2,7 @@ mod realtime_bw_change;
 mod move_rt_to_root_cgroup;
 mod cgroup_setup;
 mod hrtick;
+mod chrt;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
@@ -33,6 +34,10 @@ pub enum Command {
     /// Enable/Disable the HRTICK_DL scheduler feature
     #[command(name = "hrtick", verbatim_doc_comment)]
     HRTick(hrtick::MyArgs),
+
+    /// CHRT process to SCHED_DEADLINE
+    #[command(name = "chrt-deadline", verbatim_doc_comment)]
+    ChrtDeadline(chrt::MyArgs),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,6 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MoveRtTasksToRootCgroup => move_rt_to_root_cgroup::main()?,
         CgroupBwChange(args) => cgroup_setup::main(args)?,
         HRTick(args) => hrtick::main(args)?,
+        ChrtDeadline(args) => chrt::main(args)?,
     };
 
     Ok(())

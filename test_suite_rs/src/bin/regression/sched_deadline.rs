@@ -22,17 +22,17 @@ pub struct MyArgs {
 fn reduce_cgroups_runtime() -> Result<(), Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::*;
 
-    let rt_period = get_system_rt_period()?;
+    let rt_period = get_system_rt_period_us()?;
     let rt_runtime = rt_period * 5 / 10;
     __set_cgroup_runtime_us(".", rt_runtime)?;
     Ok(())
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, false)?;
     reduce_cgroups_runtime()?;
-    let bandwidth = args.runtime_ms as f32 / args.period_ms as f32;
+    let bandwidth = args.runtime_ms as f64 / args.period_ms as f64;
     let dl_runtime_ms = args.period_ms * 40 / 100;
 
     migrate_task_to_cgroup(".", std::process::id())?;
@@ -42,7 +42,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
     chrt(std::process::id(), MySchedPolicy::RR(99))?;
     dl_processes.iter()
         .try_for_each(|proc| {
-            println!("setting deadline to {}", proc.id());
             chrt(proc.id(), MySchedPolicy::DEADLINE {
                 runtime_ms: dl_runtime_ms,
                 deadline_ms: args.period_ms,
@@ -63,7 +62,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
 
     wait_loop(args.max_time, ctrlc_flag)?;
 
-    let mut total_usage = 0f32;
+    let mut total_usage = 0f64;
     for proc in cgroup_processes.iter() {
         total_usage += get_process_total_cpu_usage(proc.id())?;
     }
@@ -80,7 +79,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
 
     cgroup.destroy()?;
 
-    let per_cpu_usage = total_usage / cpus as f32;
+    let per_cpu_usage = total_usage / cpus as f64;
     if per_cpu_usage < bandwidth {
         Err(format!("Expected a consumption of at least {bandwidth:.2} per-CPU for cgroup's tasks, but got {per_cpu_usage:.2} per-CPU"))?;
     }

@@ -19,16 +19,28 @@ pub struct MyArgs {
     pub change_period: f32,
 
     /// first cpu set
-    #[arg(short = 'c', long = "cpu-set1", value_parser = <CpuSet as std::str::FromStr>::from_str)]
+    #[arg(long = "cpu-set1", value_parser = <CpuSet as std::str::FromStr>::from_str)]
     pub cpu_set1: CpuSet,
 
     /// second cpu set
-    #[arg(short = 'C', long = "cpu-set2", value_parser = <CpuSet as std::str::FromStr>::from_str)]
+    #[arg(long = "cpu-set2", value_parser = <CpuSet as std::str::FromStr>::from_str)]
     pub cpu_set2: CpuSet,
 
     /// max running time
     #[arg(short = 't', long = "max-time", value_name = "sec: u64")]
     pub max_time: Option<u64>,
+}
+
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    batch_test_header(&format!("change_pinning c{} r{} p{} P{:.2} set1{:?} set2{:?}",
+        args.cgroup, args.runtime_ms, args.period_ms, args.change_period, args.cpu_set1, args.cpu_set2), "stress");
+    batch_test_result(main(args, ctrlc_flag))?;
+
+    Ok(())
 }
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {

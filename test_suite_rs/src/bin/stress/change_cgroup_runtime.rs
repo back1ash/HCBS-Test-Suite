@@ -27,6 +27,17 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    batch_test_header(&format!("change_runtime c{} r{} R{} p{} P{:.2}", args.cgroup, args.runtime1_ms, args.runtime2_ms, args.period_ms, args.change_period), "stress");
+    batch_test_result(main(args, ctrlc_flag))?;
+
+    Ok(())
+}
+
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
     let mut cgroup = MyCgroup::new(&args.cgroup, args.runtime1_ms * 1000, args.period_ms * 1000, true)?;
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;

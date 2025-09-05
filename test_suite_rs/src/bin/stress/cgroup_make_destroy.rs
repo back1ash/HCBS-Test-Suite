@@ -25,6 +25,17 @@ pub struct MyArgs {
     pub max_time: Option<u64>,
 }
 
+pub fn batch_runner(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    batch_test_header(&format!("cgroup_make_destroy c{} r{} R{} p{}", args.cgroup, args.runtime_min_ms, args.runtime_max_ms, args.period_ms), "stress");
+    batch_test_result(main(args, rng, ctrlc_flag))?;
+
+    Ok(())
+}
+
 pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
     let mut thread_rng = rand::rng();
     let rng = rng.unwrap_or_else(|| &mut thread_rng);

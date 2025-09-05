@@ -15,15 +15,47 @@ pub struct MyArgs {
     pub period_ms: u64,
 
     /// number of processes to spawn
-    #[arg(short = 'n', long = "num-tasks", value_name = "N")]
+    #[arg(short = 'n', long = "num-tasks", default_value= "1", value_name = "#num")]
     pub num_tasks: u64,
+
+    /// task's allowed cpus
+    #[arg(long = "cpu-set", value_parser = <CpuSet as std::str::FromStr>::from_str)]
+    pub cpu_set: Option<CpuSet>,
 
     /// max running time
     #[arg(short = 't', long = "max-time", value_name = "sec: u64")]
     pub max_time: Option<u64>,
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn std::error::Error>> {
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    let single_bw = args.runtime_ms as f64 / args.period_ms as f64;
+    let num_cpus = args.cpu_set.as_ref()
+        .map_or(CpuSet::all()?.num_cpus(), |cpu_set| cpu_set.num_cpus());
+
+    let total_cgroup_bw = single_bw * num_cpus as f64;
+    let max_expected_bw = f64::min(total_cgroup_bw, args.num_tasks as f64);
+    let error = 0.01f64; // 1% error
+
+    batch_test_header(&format!("time c{} n{} r{} p{} set{:?}", args.cgroup, args.num_tasks, args.runtime_ms, args.period_ms, args.cpu_set), "time");
+    batch_test_result(
+        main(args, ctrlc_flag)
+        .and_then(|used_bw| {
+            if f64::abs(used_bw - max_expected_bw) < error {
+                Ok(())
+            } else {
+                Err(format!("Expected cgroup's task to use {:.2} % of total runtime, but used {:.2} %", max_expected_bw, used_bw).into())
+            }
+        })
+    )?;
+
+    Ok(())
+}
+
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
 
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
@@ -36,6 +68,9 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
         .try_for_each(|proc| {
             migrate_task_to_cgroup(&args.cgroup, proc.id())?;
             chrt(proc.id(), MySchedPolicy::RR(50))?;
+            if args.cpu_set.is_some() {
+                set_cpuset_to_pid(proc.id(), args.cpu_set.as_ref().unwrap())?;
+            }
 
             Ok::<_, Box<dyn std::error::Error>>(())
         })?;
@@ -48,10 +83,10 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
 
     let total_usage = 
         procs.iter()
-            .try_fold(0f32, |sum, proc| Ok::<f32, String>(sum + get_process_total_cpu_usage(proc.id())?))?;
+            .try_fold(0f64, |sum, proc| Ok::<f64, String>(sum + get_process_total_cpu_usage(proc.id())?))?;
 
     if !is_batch_test() {
-        println!("Yes processes used an average of {total_usage} units of CPU bandwidth.");
+        println!("Yes processes used an average of {total_usage:.5} units of CPU bandwidth.");
     }
 
     procs.into_iter()
@@ -60,10 +95,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f32, Box<dyn s
     chrt(std::process::id(), MySchedPolicy::OTHER)?;
     migrate_task_to_cgroup(".", std::process::id())?;
     cgroup.destroy()?;
-
-    if is_batch_test() {
-        println!("Total usage: {total_usage}");
-    }
 
     Ok(total_usage)
 }

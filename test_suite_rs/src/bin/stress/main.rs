@@ -85,12 +85,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args {
         All(args) => run_all::main(args, None),
-        CgroupMakeDestroy(args) => cgroup_make_destroy::main(args, None, None),
-        ChangeCgroupRuntime(args) => change_cgroup_runtime::main(args, None),
-        ChangePinning(args) => change_pinning::main(args, None),
-        ChangePriority(args) => change_priority::main(args, None),
-        Migrate(args) => migrate::main(args, None),
-        SwitchClass(args) => switch_class::main(args, None),
+        CgroupMakeDestroy(args) => cgroup_make_destroy::batch_runner(args, None, None),
+        ChangeCgroupRuntime(args) => change_cgroup_runtime::batch_runner(args, None),
+        ChangePinning(args) => change_pinning::batch_runner(args, None),
+        ChangePriority(args) => change_priority::batch_runner(args, None),
+        Migrate(args) => migrate::batch_runner(args, None),
+        SwitchClass(args) => switch_class::batch_runner(args, None),
     }
 }
 
