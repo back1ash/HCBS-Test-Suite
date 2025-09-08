@@ -20,7 +20,7 @@ pub struct MyArgs {
 }
 
 pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
-    chrt(args.pid, MySchedPolicy::DEADLINE {
+    set_scheduler(args.pid, SchedPolicy::DEADLINE {
         runtime_ms: args.runtime_ms,
         deadline_ms: args.deadline_ms,
         period_ms: args.period_ms,

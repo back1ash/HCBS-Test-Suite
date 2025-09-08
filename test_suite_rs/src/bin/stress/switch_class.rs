@@ -37,19 +37,19 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
 
     let mut proc = run_yes()?;
-    let mut state = MySchedPolicy::RR(50);
+    let mut state = SchedPolicy::RR(50);
 
     let update_fn = || {
-        if state == MySchedPolicy::RR(50) {
-            state = MySchedPolicy::OTHER;
+        if state == SchedPolicy::RR(50) {
+            state = SchedPolicy::other();
         } else {
-            state = MySchedPolicy::RR(50);
+            state = SchedPolicy::RR(50);
         }
 
-        chrt(proc.id(), state)?;
+        set_scheduler(proc.id(), state)?;
         Ok(())
     };
 
@@ -60,7 +60,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
     wait_loop_periodic_fn(args.change_period, args.max_time, ctrlc_flag, update_fn)?;
 
     proc.kill()?;
-    chrt(std::process::id(), MySchedPolicy::OTHER)?;
+    set_scheduler(std::process::id(), SchedPolicy::other())?;
     migrate_task_to_cgroup(".", std::process::id())?;
     cgroup.destroy()?;
 

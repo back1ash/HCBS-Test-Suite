@@ -26,7 +26,7 @@ pub fn main(args: MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     mount_debug_fs()?;
     
     migrate_task_to_cgroup(".", std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
 
     let target_runtime_us = args.bw_ms * 1000;
     let target_fair_server_us = 1000_000 - target_runtime_us;

@@ -10,11 +10,10 @@ libc = "0.2.173"
 nom = "8.0.0"
 num_cpus = "1.16.0"
 rand = "0.9.1"
-scheduler = "0.1.3"
 sysconf = "0.3.4"
 sysinfo = "0.34.2"
-sched_deadline = { git = "https://github.com/stephan-cr/sched_deadline-rs" }
 crossbeam = "0.8.4"
+scheduler = "0.1.3"
 
 [features]
 cgroup_v2 = []

@@ -160,7 +160,7 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
     )?;
 
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
     set_cpuset_to_pid(std::process::id(), &CpuSet::any_subset(run.config.num_cpus)?)?;
 
     let pthread_data = PeriodicThreadData {
@@ -175,7 +175,7 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
     proc.wait()?;
     
     set_cpuset_to_pid(std::process::id(), &CpuSet::all()?)?;
-    chrt(std::process::id(), MySchedPolicy::OTHER)?;
+    set_scheduler(std::process::id(), SchedPolicy::other())?;
     migrate_task_to_cgroup(".", std::process::id())?;
 
     cgroup.destroy()?;

@@ -39,10 +39,10 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     let dl_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
     let cgroup_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
 
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
     dl_processes.iter()
         .try_for_each(|proc| {
-            chrt(proc.id(), MySchedPolicy::DEADLINE {
+            set_scheduler(proc.id(), SchedPolicy::DEADLINE {
                 runtime_ms: dl_runtime_ms,
                 deadline_ms: args.period_ms,
                 period_ms: args.period_ms,
@@ -52,7 +52,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     cgroup_processes.iter()
         .try_for_each(|proc| {
             migrate_task_to_cgroup(&args.cgroup, proc.id())?;
-            chrt(proc.id(), MySchedPolicy::RR(50))
+            set_scheduler(proc.id(), SchedPolicy::RR(50))
                 .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
         })?;
 

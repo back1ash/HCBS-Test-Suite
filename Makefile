@@ -26,7 +26,7 @@ $(BUILD)/tasksets/.keep: $(BUILD)/.keep
 	if [ ! -d $(BUILD)/SchedTest ]; then\
 		tar -C $(BUILD) -xf $(shell pwd)/sched_test.tgz;\
 	fi
-	cd taskset_gen && BUILD=$(BUILD) python -B taskgen.py -o $(@D)/mnt/root/tasksets
+	cd taskset_gen && BUILD=$(BUILD) python -B taskgen.py -o $(BUILD)/mnt/root/tasksets
 	touch $@
 
 # test software

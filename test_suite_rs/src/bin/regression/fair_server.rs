@@ -37,7 +37,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     let fifo_processes: Vec<_> = (0..cpus).map(|_| cpu_hog()).try_collect()?;
     let non_fifo_processes: Vec<_> = (0..cpus).map(|_| cpu_hog()).try_collect()?;
 
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
     non_fifo_processes.iter()
         .enumerate()
         .try_for_each(|(i, proc)| {
@@ -48,7 +48,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
         .enumerate()
         .try_for_each::<_, Result<_, Box<dyn std::error::Error>>>(|(i, proc)| {
             set_cpuset_to_pid(proc.id(), &CpuSet::single(i as u32)?)?;
-            chrt(proc.id(), MySchedPolicy::RR(50))?;
+            set_scheduler(proc.id(), SchedPolicy::RR(50))?;
 
             Ok(())
         })?;

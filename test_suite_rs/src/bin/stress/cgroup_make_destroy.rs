@@ -45,7 +45,7 @@ pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Optio
             let runtime_ms = rng.random_range(args.runtime_min_ms ..= args.runtime_max_ms);
             let cgroup = MyCgroup::new(&args.cgroup, runtime_ms * 1000, args.period_ms * 1000, true)?;
             migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
-            chrt(std::process::id(), MySchedPolicy::RR(99))?;
+            set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
 
             let num_procs = rng.random_range(1..=5);
             let procs: Vec<_> = (0..num_procs)
@@ -56,7 +56,7 @@ pub fn main(args: MyArgs, rng: Option<&mut dyn rand::RngCore>, ctrlc_flag: Optio
             procs.into_iter()
                 .try_for_each(|mut proc| proc.kill())?;
 
-            chrt(std::process::id(), MySchedPolicy::OTHER)?;
+            set_scheduler(std::process::id(), SchedPolicy::other())?;
             migrate_task_to_cgroup(".", std::process::id())?;
             cgroup.destroy()?;
 

@@ -33,7 +33,7 @@ fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error:
     let mut yes = run_yes()?;
 
     let failure: Result<(), Box<dyn std::error::Error>> =
-        chrt(yes.id(), MySchedPolicy::RR(50)).map_err(|err| err.into())
+        set_scheduler(yes.id(), SchedPolicy::RR(50)).map_err(|err| err.into())
             .and_then(|_| migrate_task_to_cgroup(cgroup_name, yes.id()));
 
     yes.kill()?;
@@ -56,7 +56,7 @@ fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::erro
 
     cgroup_setup(cgroup_name, 10_000, 100_000)?;
     let mut yes = run_yes()?;
-    chrt(yes.id(), MySchedPolicy::RR(50))?;
+    set_scheduler(yes.id(), SchedPolicy::RR(50))?;
     migrate_task_to_cgroup(cgroup_name, yes.id())?;
 
     let failed = __set_cgroup_runtime_us(cgroup_name, 0);
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     mount_cgroup_fs()?;
 
     migrate_task_to_cgroup(".", std::process::id())?;
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
 
     // batch test utils
     let test_category = "constraints";

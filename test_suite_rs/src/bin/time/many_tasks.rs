@@ -63,11 +63,11 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     let procs: Vec<_> = (0..args.num_tasks)
         .map(|_| run_yes()).try_collect()?;
     
-    chrt(std::process::id(), MySchedPolicy::RR(99))?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
     procs.iter()
         .try_for_each(|proc| {
             migrate_task_to_cgroup(&args.cgroup, proc.id())?;
-            chrt(proc.id(), MySchedPolicy::RR(50))?;
+            set_scheduler(proc.id(), SchedPolicy::RR(50))?;
             if args.cpu_set.is_some() {
                 set_cpuset_to_pid(proc.id(), args.cpu_set.as_ref().unwrap())?;
             }
@@ -92,7 +92,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     procs.into_iter()
         .try_for_each(|mut proc| proc.kill())?;
 
-    chrt(std::process::id(), MySchedPolicy::OTHER)?;
+    set_scheduler(std::process::id(), SchedPolicy::other())?;
     migrate_task_to_cgroup(".", std::process::id())?;
     cgroup.destroy()?;
 

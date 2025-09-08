@@ -140,7 +140,6 @@ pub fn mount_debug_fs() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 pub fn batch_test_header(test_name: &str, test_category: &str) {
     if !is_batch_test() { return; }
 
@@ -166,7 +165,6 @@ pub fn batch_test_result(result: Result<(), Box<dyn std::error::Error>>) -> Resu
             Err(err) => println!("Failure ✖\n    Reason: {err}"),
         };
     }
-
 
     Ok(())
 }
