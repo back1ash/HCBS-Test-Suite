@@ -1,108 +1,56 @@
-.PHONY: all core install cgroup cgroup_v1 cgroup_v2 periodic busybox tasksets clean
-
 BUILD?=./build
+O?=./install
 
-all: $(BUILD)/core.gz $(BUILD)/install.tar.gz
+.PHONY: all initramfs install-tar build install
+all: build initramfs install-tar
 
-core: $(BUILD)/core.gz
-install: $(BUILD)/install.tar.gz
+initramfs: $(BUILD)/core.gz
+install-tar: $(BUILD)/install.tar.gz
 
-$(BUILD)/core.gz: $(BUILD)/initrd.gz $(BUILD)/initrd-busybox.gz $(BUILD)/initrd-periodic.gz $(BUILD)/initrd-tasksets.gz $(BUILD)/initrd-scripts.gz
-	rm -f $(BUILD)/core.gz
-	touch $(BUILD)/core.gz
-	cat $(BUILD)/initrd.gz >> $(BUILD)/core.gz
-	cat $(BUILD)/initrd-busybox.gz >> $(BUILD)/core.gz
-	cat $(BUILD)/initrd-periodic.gz >> $(BUILD)/core.gz
-	cat $(BUILD)/initrd-tasksets.gz >> $(BUILD)/core.gz
-	cat $(BUILD)/initrd-scripts.gz >> $(BUILD)/core.gz
+# Taskset builder is currently under costruction
+# build: cgroup periodic scripts tasksets
+build: cgroup periodic scripts
 
-
-$(BUILD)/install.tar.gz: $(BUILD)/install-periodic.tar.gz $(BUILD)/install-test.tar.gz $(BUILD)/install-tasksets.tar.gz $(BUILD)/install-scripts.tar.gz
-	touch $(BUILD)/install.tar.gz
-	cat $(BUILD)/install-periodic.tar.gz >> $(BUILD)/install.tar.gz
-	cat $(BUILD)/install-test.tar.gz >> $(BUILD)/install.tar.gz
-	cat $(BUILD)/install-tasksets.tar.gz >> $(BUILD)/install.tar.gz
-	cat $(BUILD)/install-scripts.tar.gz >> $(BUILD)/install.tar.gz
-	mkdir -p $(BUILD)/install
-	cd $(BUILD)/install && tar -ixvf ../install.tar.gz
-	cd $(BUILD)/install && tar -czvf ../install.tar.gz .
-	rm -r $(BUILD)/install
-
-# periodic task runner
-periodic: $(BUILD)/initrd-periodic.gz
-
-$(BUILD)/PeriodicTask/.keep: $(BUILD)/.keep
-	if [ ! -d $(BUILD)/PeriodicTask ]; then\
-		git init $(BUILD)/PeriodicTask;\
-		git -C $(BUILD)/PeriodicTask fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git 8b1839d2c2207cbb7e80f25e9d6773bbeab6630e;\
-		git -C $(BUILD)/PeriodicTask checkout FETCH_HEAD;\
-		sed -i '18 c#define MAX_TH 50' $(BUILD)/PeriodicTask/periodic_thread.c;\
-	fi
-	make -C $(BUILD)/PeriodicTask periodic_task
-	make -C $(BUILD)/PeriodicTask periodic_thread
-	touch $(BUILD)/PeriodicTask/.keep
-
-$(BUILD)/initrd-periodic.gz: $(BUILD)/PeriodicTask/.keep
-	mkdir -p $(BUILD)/periodic-task-initrd/bin
-	cp $(BUILD)/PeriodicTask/periodic_task $(BUILD)/periodic-task-initrd/bin/periodic_task
-	cp $(BUILD)/PeriodicTask/periodic_thread $(BUILD)/periodic-task-initrd/bin/periodic_thread
-	cd $(BUILD)/periodic-task-initrd && find . | cpio -o -H newc | gzip > ../initrd-periodic.gz
-
-$(BUILD)/install-periodic.tar.gz: $(BUILD)/PeriodicTask/.keep
-	mkdir -p $(BUILD)/periodic-task-install/bin
-	cp $(BUILD)/PeriodicTask/periodic_task $(BUILD)/periodic-task-install/bin/periodic_task
-	cp $(BUILD)/PeriodicTask/periodic_thread $(BUILD)/periodic-task-install/bin/periodic_thread
-	cd $(BUILD)/periodic-task-install && tar -czvf ../install-periodic.tar.gz bin/
-
-# busybox
-busybox: $(BUILD)/initrd-busybox.gz
-
-$(BUILD)/initrd-busybox.gz: $(BUILD)/.keep
-	mkdir -p $(BUILD)/busybox
-	# get busybox builder and update the config
-	if [ ! -d $(BUILD)/BuildCore ]; then\
-		git init $(BUILD)/BuildCore;\
-		git -C $(BUILD)/BuildCore fetch --depth=1 https://gitlab.retis.santannapisa.it/l.abeni/BuildCore.git 715962453dc89fb694f1193278d9f45304f03741;\
-		git -C $(BUILD)/BuildCore checkout FETCH_HEAD;\
-		sed -i '967 cCONFIG_TC=n' $(BUILD)/BuildCore/Configs/config-busybox-3;\
-		sed -i '11 cSUDOVER=1.9.17p2' $(BUILD)/BuildCore/buildcore.sh;\
-	fi
-	cd $(BUILD)/busybox && sh $(BUILD)/BuildCore/buildcore.sh $(BUILD)/initrd-busybox.gz
+install: build
+	mkdir -p $(O)
+	cp -ur $(BUILD)/mnt/root/* $(O)/
 
 # tasksets
-tasksets: $(BUILD)/initrd-tasksets.gz $(BUILD)/install-tasksets.tar.gz
+.PHONY: tasksets
+tasksets: $(BUILD)/tasksets/.keep
 
+.PRECIOUS: $(BUILD)/tasksets/.keep
 $(BUILD)/tasksets/.keep: $(BUILD)/.keep
-	mkdir -p $(BUILD)/tasksets
-	touch $(BUILD)/tasksets/.keep
+	mkdir -p $(@D)
 	# get CARTS
 	if [ ! -d $(BUILD)/SchedTest ]; then\
 		tar -C $(BUILD) -xf $(shell pwd)/sched_test.tgz;\
 	fi
-	cd taskset_gen && BUILD=$(BUILD) python -B taskgen.py -o $(BUILD)/tasksets/root/tasksets
-
-$(BUILD)/initrd-tasksets.gz: $(BUILD)/tasksets/.keep
-	cd $(BUILD)/tasksets && find . | cpio -o -H newc | gzip > ../initrd-tasksets.gz
-
-$(BUILD)/install-tasksets.tar.gz: $(BUILD)/tasksets/.keep
-	cd $(BUILD)/tasksets/root && tar -czvf ../../install-tasksets.tar.gz .
+	cd taskset_gen && BUILD=$(BUILD) python -B taskgen.py -o $(@D)/mnt/root/tasksets
+	touch $@
 
 # test software
-cgroup: $(BUILD)/initrd.gz $(BUILD)/install-test.tar.gz
+.PHONY: cgroup cgroup_v1 cgroup_v2
+cgroup: $(BUILD)/cgroup.keep
 
-$(BUILD)/initrd.gz: cgroup_v1 cgroup_v2
+$(BUILD)/cgroup.keep: cgroup_v1 cgroup_v2
 	rm -f $(BUILD)/mnt/root/test_suite
-	ln -s /root/test_suite_v2 $(BUILD)/mnt/root/test_suite
-	cd $(BUILD)/mnt && find . | cpio -o -H newc | gzip > ../initrd.gz
+	ln -s ./test_suite_v2 $(BUILD)/mnt/root/test_suite
 
-$(BUILD)/install-test.tar.gz: cgroup_v1 cgroup_v2
-	cd $(BUILD)/mnt/root/ && tar -czvf ../../install-test.tar.gz test_suite_v2/ test_suite_v1/
+RUSTFLAGS="-C target-feature=+crt-static"
+CARGO_HOME="$(BUILD)/rust/cargo"
+CARGO_TARGET_DIR="$(BUILD)/rust/target"
 
 cgroup_v2: $(BUILD)/mnt/.keep $(BUILD)/.keep
 	mkdir -p $(BUILD)/test_suite/v2
-	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+	cd test_suite_rs && \
+		RUSTFLAGS=$(RUSTFLAGS) \
+		CARGO_HOME=$(CARGO_HOME) \
+		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo build --release --features cgroup_v2 --target x86_64-unknown-linux-gnu
-	RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+	RUSTFLAGS=$(RUSTFLAGS) \
+		CARGO_HOME=$(CARGO_HOME) \
+		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v2 \
 		--no-track --frozen --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	mkdir -p $(BUILD)/mnt/root/test_suite_v2
@@ -111,9 +59,14 @@ cgroup_v2: $(BUILD)/mnt/.keep $(BUILD)/.keep
 
 cgroup_v1: $(BUILD)/mnt/.keep $(BUILD)/.keep
 	mkdir -p $(BUILD)/test_suite/v1
-	cd test_suite_rs && RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+	cd test_suite_rs && \
+		RUSTFLAGS=$(RUSTFLAGS) \
+		CARGO_HOME=$(CARGO_HOME) \
+		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo build --release --target x86_64-unknown-linux-gnu
-	RUSTFLAGS='-C target-feature=+crt-static' CARGO_HOME='$(BUILD)/rust/cargo' CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+	RUSTFLAGS=$(RUSTFLAGS) \
+		CARGO_HOME=$(CARGO_HOME) \
+		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v1 \
 		--no-track --frozen --target x86_64-unknown-linux-gnu
 	mkdir -p $(BUILD)/mnt/root/test_suite_v1
@@ -123,21 +76,83 @@ cgroup_v1: $(BUILD)/mnt/.keep $(BUILD)/.keep
 # extra scripts
 SCRIPTS = $(wildcard scripts/*)
 
-$(BUILD)/initrd-scripts.gz: $(SCRIPTS)
-	cd scripts && find . | cpio -o -H newc | gzip > $(BUILD)/initrd-scripts.gz
+.PHONY: scripts
+scripts: $(BUILD)/scripts.keep
 
-$(BUILD)/install-scripts.tar.gz: $(SCRIPTS)
-	cd scripts/root && tar -czvf $(BUILD)/install-scripts.tar.gz .
+$(BUILD)/scripts.keep: $(SCRIPTS)
+	cp -ur scripts/* $(BUILD)/mnt/root
+	touch $@
+
+# periodic task runner
+.PHONY: periodic
+periodic: $(BUILD)/mnt/root/bin/periodic_task $(BUILD)/mnt/root/bin/periodic_thread
+
+$(BUILD)/PeriodicTask/.keep: $(BUILD)/.keep
+	git init $(@D)
+	git -C $(@D) fetch --depth=1 \
+		https://gitlab.retis.santannapisa.it/l.abeni/PeriodicTask.git \
+		8b1839d2c2207cbb7e80f25e9d6773bbeab6630e
+	git -C $(@D) checkout FETCH_HEAD
+	sed -i '18 c#define MAX_TH 50' $(@D)/periodic_thread.c
+	touch $@
+
+$(BUILD)/mnt/root/bin/periodic_task: $(BUILD)/PeriodicTask/.keep
+	make -C $(<D) periodic_task
+	mkdir -p $(@D)
+	cp -u $(<D)/periodic_task $@
+
+$(BUILD)/mnt/root/bin/periodic_thread: $(BUILD)/PeriodicTask/.keep
+	make -C $(<D) periodic_thread
+	mkdir -p $(@D)
+	cp -u $(<D)/periodic_thread $@
+
+# busybox (only for initramfs)
+.PHONY: busybox
+busybox: $(BUILD)/initrd-busybox.gz
+
+# get busybox builder and update the config
+$(BUILD)/BuildCore/.keep: $(BUILD)/.keep
+	git init $(@D)
+	git -C $(@D) fetch --depth=1 \
+		https://gitlab.retis.santannapisa.it/l.abeni/BuildCore.git \
+		715962453dc89fb694f1193278d9f45304f03741
+	git -C $(@D) checkout FETCH_HEAD
+	sed -i '967 cCONFIG_TC=n' $(@D)/Configs/config-busybox-3
+	sed -i '11 cSUDOVER=1.9.17p2' $(@D)/buildcore.sh
+	touch $@
+
+$(BUILD)/initrd-busybox.gz: $(BUILD)/BuildCore/.keep
+	mkdir -p $(BUILD)/busybox
+	cd $(BUILD)/busybox && sh $(BUILD)/BuildCore/buildcore.sh $@
+
+### compressed targets
+# initramfs
+$(BUILD)/core.gz: $(BUILD)/initrd-busybox.gz $(BUILD)/initrd.gz
+	rm -f $@
+	touch $@
+	cat $(BUILD)/initrd.gz >> $@
+	cat $(BUILD)/initrd-busybox.gz >> $@
+
+$(BUILD)/initrd.gz: build
+	cd $(BUILD)/mnt/ && find . | cpio -o -H newc | gzip > ../initrd.gz
+
+# tar compressed archive
+$(BUILD)/install.tar.gz: build
+	cd $(BUILD)/mnt/root && tar -czvf ../../install.tar.gz .
 
 # generic
 $(BUILD)/mnt/.keep:
-	mkdir -p $(BUILD)/mnt
-	cp -ur ./mnt $(BUILD)/
+	mkdir -p $(@D)
+	touch $@
 
 $(BUILD)/.keep:
-	mkdir -p $(BUILD)
-	touch $(BUILD)/.keep
+	mkdir -p $(@D)
+	touch $@
 
+.PHONY: clean
 clean:
 	rm -rf $(BUILD)
-	cd test_suite_rs && cargo clean
+	cd test_suite_rs && \
+		CARGO_HOME='$(BUILD)/rust/cargo' \
+		CARGO_TARGET_DIR='$(BUILD)/rust/target' \
+		cargo clean
