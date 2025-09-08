@@ -9,7 +9,7 @@ Rust-based tests for Hierarchical Constant Bandwidth Server (available at https:
 - **Make**
 - **Git**
 - **GCC**
-- **Rust** - nightly version
+- **Rust**: ≥1.89.0-nightly
 - **Python3**
 
 ### Installation

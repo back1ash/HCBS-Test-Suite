@@ -1,5 +1,4 @@
 #![feature(iterator_try_collect)]
-#![feature(result_flattening)]
 
 use std::{ops::{Deref, DerefMut}, process::{Command, Stdio}};
 

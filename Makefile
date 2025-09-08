@@ -43,32 +43,22 @@ CARGO_TARGET_DIR="$(BUILD)/rust/target"
 
 cgroup_v2: $(BUILD)/mnt/.keep $(BUILD)/.keep
 	mkdir -p $(BUILD)/test_suite/v2
-	cd test_suite_rs && \
-		RUSTFLAGS=$(RUSTFLAGS) \
-		CARGO_HOME=$(CARGO_HOME) \
-		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
-		cargo build --release --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	RUSTFLAGS=$(RUSTFLAGS) \
 		CARGO_HOME=$(CARGO_HOME) \
 		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v2 \
-		--no-track --frozen --features cgroup_v2 --target x86_64-unknown-linux-gnu
+		--no-track --features cgroup_v2 --target x86_64-unknown-linux-gnu
 	mkdir -p $(BUILD)/mnt/root/test_suite_v2
 	cp -r $(BUILD)/test_suite/v2/bin/* $(BUILD)/mnt/root/test_suite_v2/
 	rm -rf $(BUILD)/test_suite/v2
 
 cgroup_v1: $(BUILD)/mnt/.keep $(BUILD)/.keep
 	mkdir -p $(BUILD)/test_suite/v1
-	cd test_suite_rs && \
-		RUSTFLAGS=$(RUSTFLAGS) \
-		CARGO_HOME=$(CARGO_HOME) \
-		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
-		cargo build --release --target x86_64-unknown-linux-gnu
 	RUSTFLAGS=$(RUSTFLAGS) \
 		CARGO_HOME=$(CARGO_HOME) \
 		CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) \
 		cargo install --path ./test_suite_rs --root $(BUILD)/test_suite/v1 \
-		--no-track --frozen --target x86_64-unknown-linux-gnu
+		--no-track --target x86_64-unknown-linux-gnu
 	mkdir -p $(BUILD)/mnt/root/test_suite_v1
 	cp -r $(BUILD)/test_suite/v1/bin/* $(BUILD)/mnt/root/test_suite_v1/
 	rm -rf $(BUILD)/test_suite/v1
