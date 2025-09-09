@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, utils::{batch_test_failure, batch_test_skipped, batch_test_success}};
 
 #[derive(clap::Parser, Debug)]
 pub struct MyArgsAll {
@@ -363,24 +363,27 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
         .filter(|run| !std::path::Path::new(&run.output_file).exists())
         .count() as u64;
 
-    println!("Running {}/{} tasksets. Expected runtime: {:.2} secs", todo_runs, total_runs, total_expected_runtime_us as f64 / 1000_000f64);
+    println!("[taskset] Taskset Tests ");
+    println!("          Running {}/{} tasksets", todo_runs, total_runs);
+    println!("          Expected runtime: {:.2} secs", total_expected_runtime_us as f64 / 1000_000f64);
 
     // run experiments
     let mut failures = 0u64;
     let mut results = Vec::with_capacity(taskset_runs.len());
     for run in taskset_runs.into_iter() {
+        let insights = compute_insights(&run, &args.args);
+        let taskset_header = format!("{} on {} (~{:.2} secs)",
+            run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
+        batch_test_header(&taskset_header, "taskset");
+
         if !can_run_taskset(&run, &args.args) {
-            println!("- Skipping taskset {}, config {}: cannot run on current config", run.tasks.name, run.config.name);
+            batch_test_skipped("cannot run on current config");
             continue;
         }
 
-        let taskset_name = run.tasks.name.clone();
-        let config_name = run.config.name.clone();
-
         let result =
             if std::path::Path::new(&run.output_file).exists() {
-                println!("* Skipping taskset {}, config {}: already run",
-                    run.tasks.name, run.config.name);
+                batch_test_skipped("already run");
 
                 Ok(TasksetRunResult {
                     taskset: run.tasks,
@@ -388,26 +391,26 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
                     results: parse_taskset_results(&run.output_file)?,
                 })
             } else {
-                let insights = compute_insights(&run, &args.args);
-                println!("* Running taskset {}, config {}: expected runtime {:.2} secs",
-                    run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
-
                 run_taskset(run, &args.args)
             }?;
 
         let insights = compute_result_insights(&result);
 
+
         if insights.num_overruns > 0 {
-            println!("- Taskset {}, config {} failed: {:.2} % error rate, {} worst overrun",
-            taskset_name, config_name, insights.overruns_ratio * 100f64, insights.worst_overrun);
+            batch_test_failure(format!("Deadline overrun: {:.2} % error rate, {} worst overrun",
+                insights.overruns_ratio * 100f64, insights.worst_overrun));
 
             failures += 1;
+        } else {
+            batch_test_success();
         }
 
         results.push(result);
     }
 
-    println!("Outcome: {}/{} failures/tests, {:.2} failure ratio",
+    println!("[taskset] Taskset Tests ");
+    println!("          Outcome: {}/{} failures/tests, {:.2} failure ratio",
         failures, total_runs, failures as f64 / total_runs as f64);
 
     Ok(MyResult { results })

@@ -32,14 +32,21 @@ constraints() {
 
 time_tests() {
     echo "* Time Tests *"
-    ./test_suite_v2/time many -r 10 -p 100 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task" \
+        ./test_suite_v2/time many -r 10 -p 100 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task-one-cpu" \
+        ./test_suite_v2/time many -r 10 -p 100 --cpu-set 0 -t 10
+    BATCH_TEST_CUSTOM_NAME="five-tasks" \
+        ./test_suite_v2/time many -n 5 -r 10 -p 100 -t 10
 }
 
 known_regression() {
     echo "* Known Regression Tests *"
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fair-server -t 60
-    BATCH_TEST_CUSTOM_NAME="migration-regression" ./test_suite_v2/stress task-migration -r 1 -p 100 -P 0.1 -t 300
-    BATCH_TEST_CUSTOM_NAME="affinity-regression" ./test_suite_v2/stress task-pinning -r 1 -p 100 -P 0.1 --cpu-set1 0 --cpu-set2 1 -t 300
+    BATCH_TEST_CUSTOM_NAME="migration-regression" \
+        ./test_suite_v2/stress task-migration -r 1 -p 100 -P 0.1 -t 300
+    BATCH_TEST_CUSTOM_NAME="affinity-regression" \
+        ./test_suite_v2/stress task-pinning -r 1 -p 100 -P 0.1 --cpu-set1 0 --cpu-set2 1 -t 300
 }
 
 random_stress() {
@@ -50,6 +57,7 @@ random_stress() {
 
 tasksets() {
     echo "* Taskset Tests *"
+    TESTBINDIR=bin ./test_suite_v2/taskset all -n $(nproc) -i ./tasksets -o ./tasksets_out || true
 }
 
 export BATCH_TEST=1

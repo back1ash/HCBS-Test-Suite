@@ -36,8 +36,16 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
         Err(format!("Batch testing requires a maximum running time"))?;
     }
 
-    batch_test_header(&format!("change_pinning c{} r{} p{} P{:.2} set1{:?} set2{:?}",
-        args.cgroup, args.runtime_ms, args.period_ms, args.change_period, args.cpu_set1, args.cpu_set2), "stress");
+    let test_header = format!("change_pinning c{} r{} p{} P{:.2} set1{:?} set2{:?}",
+        args.cgroup, args.runtime_ms, args.period_ms, args.change_period, args.cpu_set1, args.cpu_set2);
+    let test_header =
+        if is_batch_test() {
+            test_header 
+        } else {
+            test_header + "(Ctrl+C to stop)"
+        };
+
+    batch_test_header(&test_header, "stress");
     batch_test_result(main(args, ctrlc_flag))?;
 
     Ok(())
@@ -62,10 +70,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
         set_cpuset_to_pid(proc.id(), state)?;
         Ok(())
     };
-
-    if !is_batch_test() {
-        println!("Started Yes process\nPress Ctrl+C to stop");
-    }
 
     wait_loop_periodic_fn(args.change_period, args.max_time, ctrlc_flag, update_fn)?;
 

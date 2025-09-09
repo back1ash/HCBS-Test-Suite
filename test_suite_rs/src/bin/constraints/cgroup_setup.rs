@@ -4,10 +4,6 @@ use hcbs_test_suite::prelude::*;
 fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::{__set_cgroup_period_us, __set_cgroup_runtime_us};
 
-    if !is_batch_test() {
-        println!("Cgroup \'{cgroup_name}\' setup with {runtime_us}/{period_us} runtime/period should fail.");
-    }
-
     create_cgroup(cgroup_name)?;
 
     let failure: Result<(), _> = 
@@ -19,16 +15,11 @@ fn cgroup_time_tests(cgroup_name: &str, runtime_us: u64, period_us: u64) -> Resu
     if failure.is_ok() {
         Err(format!("Cgroup \'{cgroup_name}\' creation with {runtime_us}/{period_us} did not fail"))?
     } else {
-        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
 
 fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if !is_batch_test() {
-        println!("Task migration to cgroup \'{cgroup_name}\' with runtime 0 should fail.");
-    }
-
     cgroup_setup(cgroup_name, 0, 100_000)?;
     let mut yes = run_yes()?;
 
@@ -42,16 +33,11 @@ fn add_task_to_runtime_zero(cgroup_name: &str) -> Result<(), Box<dyn std::error:
     if failure.is_ok() {
         Err(format!("Cgroup with 0 runtime must not allow to run tasks"))?
     } else {
-        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
 
 fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if !is_batch_test() {
-        println!("Zeroing runtime to cgroup \'{cgroup_name}\' with active task should fail.");
-    }
-
     use hcbs_test_suite::cgroup::__set_cgroup_runtime_us;
 
     cgroup_setup(cgroup_name, 10_000, 100_000)?;
@@ -68,7 +54,6 @@ fn set_runtime_zero_to_active(cgroup_name: &str) -> Result<(), Box<dyn std::erro
     if failed.is_ok() {
         Err(format!("Cannot set runtime zero to cgroup with active tasks"))?
     } else {
-        if !is_batch_test() { println!("Ok!"); }
         Ok(())
     }
 }
@@ -107,8 +92,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     batch_test_result(set_runtime_zero_to_active("g0"))?;
 
     // change runtime/period of parent with child with active tasks
-
-    if !is_batch_test() { println!("All tests passed!"); }
 
     Ok(())
 }

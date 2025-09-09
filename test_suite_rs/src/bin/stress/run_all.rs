@@ -45,7 +45,6 @@ impl rand::distr::Distribution<TestType> for rand::distr::StandardUniform {
 }
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
-    let run_as_batch_test = is_batch_test();
     unsafe { set_batch_test(); }
 
     let ctrlc_flag = match ctrlc_flag {
@@ -54,7 +53,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
     };
 
     let mut rand = rand::rngs::StdRng::seed_from_u64(args.seed);
-    for i in 0..args.num_tests {
+    for _ in 0..args.num_tests {
         if ctrlc_flag.is_exit() {
             break;
         }
@@ -65,7 +64,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn st
         let runtime_min_ms = 20;
         let runtime_half_ms = (runtime_max_ms + runtime_min_ms) / 2;
 
-        if !run_as_batch_test { println!("Running test {i}/{0}: {test_type:?}", args.num_tests); }
         match test_type {
             TestType::CgroupMakeDestroy => {
                 let _runtime_min_ms = rand.random_range(runtime_min_ms..=runtime_half_ms);

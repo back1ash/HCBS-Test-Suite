@@ -15,19 +15,29 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
     let fair_server_bw = get_fair_server_avg_bw()?;
     let error = 0.01f64; // 1% error
 
-    batch_test_header("fair_server", "regression");
-    batch_test_result(
-        main(args, ctrlc_flag)
+    let test_header =
+        if is_batch_test() {
+            "fair_server"
+        } else {
+            "fair_server (Ctrl+C to stop)"
+        };
+
+    batch_test_header(test_header, "regression");
+
+    let result = main(args, ctrlc_flag)
         .and_then(|used_bw| {
             if f64::abs(used_bw - fair_server_bw) < error {
-                Ok(())
+                Ok(format!("SCHED_OTHER processes got {:.2} % of total runtime.", used_bw * 100f64))
             } else {
                 Err(format!("Expected SCHED_OTHER tasks to use {:.2} % of total runtime, but used {:.2} %", used_bw * 100.0, fair_server_bw * 100.0).into())
             }
-        })
-    )?;
+        });
 
-    Ok(())
+    if is_batch_test() {
+        batch_test_result(result)
+    } else {
+        batch_test_result_details(result)
+    }
 }
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
@@ -53,10 +63,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
             Ok(())
         })?;
 
-    if !is_batch_test() {
-        println!("Press Ctrl+C to stop");
-    }
-
     wait_loop(args.max_time, ctrlc_flag)?;
 
     let fifo_total_usage = 
@@ -71,10 +77,6 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
 
     let non_fifo_ratio =
         non_fifo_total_usage / (non_fifo_total_usage + fifo_total_usage);
-
-    if !is_batch_test() {
-        println!("SCHED_OTHER processes got {:.2} % of total runtime.", non_fifo_ratio * 100f64);
-    }
 
     fifo_processes.into_iter()
         .try_for_each(|mut proc| proc.kill())?;

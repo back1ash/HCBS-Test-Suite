@@ -40,19 +40,31 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
     let max_expected_bw = f64::min(total_cgroup_bw, args.num_tasks as f64);
     let error = 0.01f64; // 1% error
 
-    batch_test_header(&format!("time c{} n{} r{} p{} set{:?}", args.cgroup, args.num_tasks, args.runtime_ms, args.period_ms, args.cpu_set), "time");
-    batch_test_result(
-        main(args, ctrlc_flag)
+    let test_header = format!("time c{} n{} r{} p{} set{:?}",
+        args.cgroup, args.num_tasks, args.runtime_ms, args.period_ms, args.cpu_set);
+    let test_header =
+        if is_batch_test() {
+            test_header 
+        } else {
+            test_header + "(Ctrl+C to stop)"
+        };
+
+    batch_test_header(&test_header, "time");
+    
+    let result = main(args, ctrlc_flag)
         .and_then(|used_bw| {
             if f64::abs(used_bw - max_expected_bw) < error {
-                Ok(())
+                Ok(format!("Processes used an average of {used_bw:.5} units of CPU bandwidth."))
             } else {
                 Err(format!("Expected cgroup's task to use {:.2} % of total runtime, but used {:.2} %", max_expected_bw, used_bw).into())
             }
-        })
-    )?;
+        });
 
-    Ok(())
+    if is_batch_test() {
+        batch_test_result(result)
+    } else {
+        batch_test_result_details(result)
+    }
 }
 
 pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
@@ -75,19 +87,11 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
             Ok::<_, Box<dyn std::error::Error>>(())
         })?;
 
-    if !is_batch_test() {
-        println!("Started Yes processes\nPress Ctrl+C to stop");
-    }
-
     wait_loop(args.max_time, ctrlc_flag)?;
 
     let total_usage = 
         procs.iter()
             .try_fold(0f64, |sum, proc| Ok::<f64, String>(sum + get_process_total_cpu_usage(proc.id())?))?;
-
-    if !is_batch_test() {
-        println!("Yes processes used an average of {total_usage:.5} units of CPU bandwidth.");
-    }
 
     procs.into_iter()
         .try_for_each(|mut proc| proc.kill())?;

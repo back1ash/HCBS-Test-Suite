@@ -28,7 +28,7 @@ The building process is based on Make, and will produce a variety of targets:
 
 # Install the test software in the specified directory
 # if the output folder is not specified, it defaults to ./install
-> make O=<install directory> install 
+> make O=<install directory> install
 
 # Build and pack togheter in a tar compressed archive (<BUILD_DIR>/install.tar.gz)
 > make install-tar
@@ -123,11 +123,15 @@ Taskset tests are more complex: given a set of (generated) periodic tasks and th
 
 The next step of this test suite is to configure cgroups as computed and to run the taskset, to verify that the HCBS implementation works as intended and that the scheduling overheads are within reasonable bounds.
 
+#### NOTES:
+
+The current analyzer software is closed source, so the tasksets for the tests are provided separately [here](). As a future *to-do*, the analyzer software will be rewritten to be open source.
+
 ### Extra Tools
 
 The extra **tools** executable exposes a number of QoL features to simplify the setup/use of HCBS and related features. Currently (2025-09-08) it provides:
 
-- CPU hog 
+- CPU hog
 - Mounting of the cgroup's filesystem and enabling of the CPU controller
 - Mounting of the debug filesystem
 - Migration of all the SCHED_FIFO/SCHED_RR tasks to the root control group, necessary to enable the CPU controller on the cgroups, as some Linux distributions start some rt-tasks in some cgroups before enabling the mechanism.
@@ -144,7 +148,7 @@ This project is licensed under the GNU General Public License v3 - see the [LICE
 
 - [ ] **More Tests**: The repository will be updated with new tests, as the HCBS patches continue to evolve.
 - [ ] **Rewrite Taskset Analyzer**: The taskset generation software is currently closed source, but I plan to rewrite it to include newer algorithms and make it open source.
-- [ ] **Rewrite Periodic Task in Rust**: Currently the periodic_task and periodic_thread binaries come from another git repository and are written in C. 
+- [ ] **Rewrite Periodic Task in Rust**: Currently the periodic_task and periodic_thread binaries come from another git repository and are written in C.
 
 ---
 

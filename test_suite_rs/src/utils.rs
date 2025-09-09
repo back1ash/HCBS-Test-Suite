@@ -13,6 +13,11 @@ pub mod prelude {
         mount_debug_fs,
         batch_test_header,
         batch_test_result,
+        batch_test_result_details,
+        batch_test_success,
+        batch_test_success_details,
+        batch_test_skipped,
+        batch_test_failure,
         get_fair_server_avg_bw,
     };
 }
@@ -140,9 +145,37 @@ pub fn mount_debug_fs() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn batch_test_header(test_name: &str, test_category: &str) {
-    if !is_batch_test() { return; }
+pub fn batch_test_success() {
+    if is_env_var_set("TERM_COLORS") {
+        println!("\x1b[32mSuccess ✔\x1b[0m");
+    } else {
+        println!("Success ✔");
+    }
+}
 
+pub fn batch_test_success_details<T: std::fmt::Display>(msg: T) {
+    batch_test_success();
+    
+    println!("    Details: {msg}");
+}
+
+pub fn batch_test_failure<E: std::fmt::Display>(err: E) {
+    if is_env_var_set("TERM_COLORS") {
+        println!("\x1b[31mFailure ✖\x1b[0m\n    Reason: {err}")
+    } else {
+        println!("Failure ✖\n    Reason: {err}")
+    }
+}
+
+pub fn batch_test_skipped<T: std::fmt::Display>(msg: T) {
+    if is_env_var_set("TERM_COLORS") {
+        println!("\x1b[33mSkipped ⛒\n    Reason: {msg}\x1b[0m");
+    } else {
+        println!("Skipped ⛒\n    Reason: {msg}");
+    }
+}
+
+pub fn batch_test_header(test_name: &str, test_category: &str) {
     match std::env::var("BATCH_TEST_CUSTOM_NAME") {
         Ok(custom) if custom != "" => print!("[{}] {}: ", test_category, custom),
         _ => print!("[{}] {}: ", test_category, test_name),
@@ -151,22 +184,30 @@ pub fn batch_test_header(test_name: &str, test_category: &str) {
     std::io::stdout().flush().unwrap();
 }
 
-pub fn batch_test_result(result: Result<(), Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
-    if !is_batch_test() { return result; }
+pub fn batch_test_result<T>(result: Result<T, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
+    match &result {
+        Ok(_) => batch_test_success(),
+        Err(err) => batch_test_failure(err),
+    };
 
-    if is_env_var_set("TERM_COLORS") {
-        match result {
-            Ok(_) => println!("\x1b[32mSuccess ✔\x1b[0m"),
-            Err(err) => println!("\x1b[31mFailure ✖\x1b[0m\n    Reason: {err}"),
-        };
+    if is_batch_test() {
+        Ok(())
     } else {
-        match result {
-            Ok(_) => println!("Success ✔"),
-            Err(err) => println!("Failure ✖\n    Reason: {err}"),
-        };
+        result.map(|_| ())
     }
+}
 
-    Ok(())
+pub fn batch_test_result_details<T: std::fmt::Display>(result: Result<T, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
+    match &result {
+        Ok(msg) => batch_test_success_details(msg),
+        Err(err) => batch_test_failure(err),
+    };
+
+    if is_batch_test() {
+        Ok(())
+    } else {
+        result.map(|_| ())
+    }
 }
 
 pub fn get_fair_server_avg_bw() -> Result<f64, Box<dyn std::error::Error>> {
