@@ -144,6 +144,11 @@ The extra **tools** executable exposes a number of QoL features to simplify the 
 
 This project is licensed under the GNU General Public License v3 - see the [LICENSE](LICENSE) file for details.
 
+## 👤 Author
+
+**HCBS-Rust initrd** was developed by:
+- **Yuri Andriaccio** [yurand2000@gmail.com](mailto:yurand2000@gmail.com), [GitHub](https://github.com/Yurand2000).
+
 ## 📝 TODO - Future Work
 
 - [ ] **More Tests**: The repository will be updated with new tests, as the HCBS patches continue to evolve.
