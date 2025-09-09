@@ -362,18 +362,31 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
         .filter(|run| can_run_taskset(run, &args.args))
         .filter(|run| !std::path::Path::new(&run.output_file).exists())
         .count() as u64;
+    let any_skips = taskset_runs.iter()
+        .filter(|run| can_run_taskset(run, &args.args))
+        .any(|run| std::path::Path::new(&run.output_file).exists());
 
     println!("[taskset] Taskset Tests ");
     println!("          Running {}/{} tasksets", todo_runs, total_runs);
     println!("          Expected runtime: {:.2} secs", total_expected_runtime_us as f64 / 1000_000f64);
+    if any_skips {
+        println!("          Delete the folder '{}' to rerun all tests", args.output_dir);
+    }
 
     // run experiments
     let mut failures = 0u64;
     let mut results = Vec::with_capacity(taskset_runs.len());
     for run in taskset_runs.into_iter() {
+        let already_run = std::path::Path::new(&run.output_file).exists();
+
         let insights = compute_insights(&run, &args.args);
-        let taskset_header = format!("{} on {} (~{:.2} secs)",
-            run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
+        let taskset_header = format!("{} on {}", run.tasks.name, run.config.name);
+        let taskset_header =
+            if already_run {
+                taskset_header + " (already run)"
+            } else {
+                taskset_header + &format!(" (~{:.2} secs)", insights.expected_runtime_us as f64 / 1000_000f64)
+            };
         batch_test_header(&taskset_header, "taskset");
 
         if !can_run_taskset(&run, &args.args) {
@@ -382,9 +395,7 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
         }
 
         let result =
-            if std::path::Path::new(&run.output_file).exists() {
-                batch_test_skipped("already run");
-
+            if already_run {
                 Ok(TasksetRunResult {
                     taskset: run.tasks,
                     config: run.config,
@@ -395,7 +406,6 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
             }?;
 
         let insights = compute_result_insights(&result);
-
 
         if insights.num_overruns > 0 {
             batch_test_failure(format!("Deadline overrun: {:.2} % error rate, {} worst overrun",

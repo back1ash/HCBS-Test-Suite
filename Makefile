@@ -1,5 +1,5 @@
-BUILD?=./build
-O?=./install
+BUILD?=build
+O?=install
 
 .PHONY: all initramfs install-tar build install
 all: build initramfs install-tar

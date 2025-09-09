@@ -156,12 +156,16 @@ pub fn batch_test_success() {
 pub fn batch_test_success_details<T: std::fmt::Display>(msg: T) {
     batch_test_success();
     
-    println!("    Details: {msg}");
+    if is_env_var_set("TERM_COLORS") {
+        println!("\x1b[32m    Details: \x1b[0m{msg}");
+    } else {
+        println!("    Details: {msg}");
+    }
 }
 
 pub fn batch_test_failure<E: std::fmt::Display>(err: E) {
     if is_env_var_set("TERM_COLORS") {
-        println!("\x1b[31mFailure ✖\x1b[0m\n    Reason: {err}")
+        println!("\x1b[31mFailure ✖\n    Reason: \x1b[0m{err}")
     } else {
         println!("Failure ✖\n    Reason: {err}")
     }
@@ -169,7 +173,7 @@ pub fn batch_test_failure<E: std::fmt::Display>(err: E) {
 
 pub fn batch_test_skipped<T: std::fmt::Display>(msg: T) {
     if is_env_var_set("TERM_COLORS") {
-        println!("\x1b[33mSkipped ⛒\n    Reason: {msg}\x1b[0m");
+        println!("\x1b[33mSkipped ⛒\n    Reason: \x1b[0m{msg}");
     } else {
         println!("Skipped ⛒\n    Reason: {msg}");
     }
