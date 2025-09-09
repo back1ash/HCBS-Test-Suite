@@ -16,4 +16,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build Initrd
-        run: make all
+        run: make BUILD=/tmp/initrd/build/ build
