@@ -1,6 +1,6 @@
 # HCBS-Rust Initrd
 
-Rust-based tests for Hierarchical Constant Bandwidth Server (available at https://github.com/Yurand2000/HCBS-patch)
+Rust-based tests for [Hierarchical Constant Bandwidth Server](https://github.com/Yurand2000/HCBS-patch)
 
 ## 🚀 Quick Start
 
@@ -129,16 +129,17 @@ The current analyzer software is closed source, so the tasksets for the tests ar
 
 ### Extra Tools
 
-The extra **tools** executable exposes a number of QoL features to simplify the setup/use of HCBS and related features. Currently (2025-09-08) it provides:
+The extra **tools** executable exposes a number of QoL features to simplify the setup/use of HCBS and related features. Currently (2025-09-23) it provides:
 
-- CPU hog
-- Mounting of the cgroup's filesystem and enabling of the CPU controller
-- Mounting of the debug filesystem
-- Migration of all the SCHED_FIFO/SCHED_RR tasks to the root control group, necessary to enable the CPU controller on the cgroups, as some Linux distributions start some rt-tasks in some cgroups before enabling the mechanism.
-- Change the global bandwidth limits of real-time tasks.
-- Enable/Disable HRTick
-- Set scheduler to SCHED_DEADLINE for the given process (useful in case the default *chrt* does not support it).
-- HCBS-specific cgroup setup
+- **CPU hog**
+- **Mounting of the cgroup's filesystem**
+- **Mounting of the cgroup's filesystem and enabling of the CPU controller**
+- **Mounting of the debug filesystem**
+- **Migration of all the SCHED_FIFO/SCHED_RR tasks to the root control group.** This is necessary to enable the CPU controller on the cgroups, as some Linux distributions start some rt-tasks in some cgroups before enabling the mechanism.
+- **Change the global bandwidth limits of real-time tasks.**
+- **Enable/Disable HRTick**
+- **Set scheduler to SCHED_DEADLINE for the given process**, useful in case the default *chrt* does not support it.
+- **HCBS-specific cgroup setup**
 
 ## 📄 License
 
@@ -153,7 +154,7 @@ This project is licensed under the GNU General Public License v3 - see the [LICE
 
 - [ ] **More Tests**: The repository will be updated with new tests, as the HCBS patches continue to evolve.
 - [ ] **Rewrite Taskset Analyzer**: The taskset generation software is currently closed source, but I plan to rewrite it to include newer algorithms and make it open source.
-- [ ] **Rewrite Periodic Task in Rust**: Currently the periodic_task and periodic_thread binaries come from another git repository and are written in C.
+- [ ] **Rewrite Periodic Task in Rust**: Currently the periodic_task and periodic_thread binaries come from another git repository and are written in C. This would remove the need for the C compiler (only non BusyBox builds).
 
 ---
 

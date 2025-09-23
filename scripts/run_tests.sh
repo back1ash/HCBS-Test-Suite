@@ -7,11 +7,11 @@ print_help() {
     echo "Available Test Suites:"
     echo "-   all (or no argument) : run all test suites"
     echo "-            constraints : run constraints tests"
-    echo "-                   time : run time tests"
-    echo "-       known-regression : run known regression tests"
+    echo "-                   time : run time tests (~30s runtime)"
+    echo "-       known-regression : run known regression tests (~11m runtime)"
     echo ""
     echo "-                   full : run all test suites + excluded ones"
-    echo "-          random-stress : run randomly generated stress tests (not included in all)"
+    echo "-          random-stress : run randomly generated stress tests (not included in all, ~1h runtime)"
     echo "-               tasksets : run taskset tests (not included in all)"
 }
 
