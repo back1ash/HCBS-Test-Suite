@@ -11,9 +11,13 @@ pub enum Command {
     #[command(name = "hog", verbatim_doc_comment)]
     Hog,
 
-    /// Mount CGRoup filesystem and CPU controller
+    /// Mount CGroup filesystem
     #[command(name = "mount-cgroup-fs", verbatim_doc_comment)]
     MountCgroupFS,
+
+    /// Mount CGroup filesystem and CPU controller
+    #[command(name = "mount-cgroup-cpu", verbatim_doc_comment)]
+    MountCgroupCPU,
 
     /// Mount DebugFS
     #[command(name = "mount-debug-fs", verbatim_doc_comment)]
@@ -53,7 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 core::ptr::write_volatile(&mut i, i_val + 1);
             } }
         }
-        MountCgroupFS => hcbs_test_suite::cgroup::mount_cgroup_fs()?,
+        MountCgroupCPU => hcbs_test_suite::cgroup::mount_cgroup_fs()?,
+        MountCgroupFS => hcbs_test_suite::cgroup::__mount_cgroup_fs()?,
         MountDebugFS => hcbs_test_suite::utils::mount_debug_fs()?,
         RealtimeBwChange(args) => realtime_bw_change::main(args)?,
         MoveRtTasksToRootCgroup => move_rt_to_root_cgroup::main()?,

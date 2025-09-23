@@ -42,9 +42,10 @@ pub struct MyArgs {
     #[arg(short = 'n', long = "cpus", value_name = "u64")]
     pub max_num_cpus: u64,
 
-    /// max allocable bandwidth for the cgroup. This is usually 0.95 as 5% of
-    /// the bandwidth is reserved for SCHED_OTHER tasks.
-    #[arg(short = 'b', long = "max-bw", value_name = "f32", default_value = "0.95")]
+    /// max allocable bandwidth for the cgroup. This is usually 0.90 as 5% of
+    /// the bandwidth is reserved for SCHED_OTHER tasks and the other 5% is used
+    /// for overheads (?).
+    #[arg(short = 'b', long = "max-bw", value_name = "f32", default_value = "0.90")]
     pub max_allocable_bw: f32,
 
     /// number of instances per job

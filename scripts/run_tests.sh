@@ -18,10 +18,11 @@ print_help() {
 setup() {
     echo "* Preliminary Setup *"
     (
-        ./test_suite_v2/tools move-to-root          &&
         ./test_suite_v2/tools mount-cgroup-fs       &&
+        ./test_suite_v2/tools move-to-root          &&
+        ./test_suite_v2/tools mount-cgroup-cpu      &&
         ./test_suite_v2/tools mount-debug-fs        &&
-        ./test_suite_v2/tools cgroup-setup -r 950
+        ./test_suite_v2/tools cgroup-setup -r 900
     ) || exit 1
 }
 
