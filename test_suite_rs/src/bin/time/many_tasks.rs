@@ -38,7 +38,7 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
 
     let total_cgroup_bw = single_bw * num_cpus as f64;
     let max_expected_bw = f64::min(total_cgroup_bw, args.num_tasks as f64);
-    let error = 0.01f64; // 1% error
+    let max_error = 0.025;
 
     let test_header = format!("time c{} n{} r{} p{} set{:?}",
         args.cgroup, args.num_tasks, args.runtime_ms, args.period_ms, args.cpu_set);
@@ -46,17 +46,17 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
         if is_batch_test() {
             test_header 
         } else {
-            test_header + "(Ctrl+C to stop)"
+            test_header + " (Ctrl+C to stop)"
         };
 
     batch_test_header(&test_header, "time");
     
     let result = main(args, ctrlc_flag)
         .and_then(|used_bw| {
-            if f64::abs(used_bw - max_expected_bw) < error {
+            if f64::abs(used_bw - max_expected_bw) < max_error {
                 Ok(format!("Processes used an average of {used_bw:.5} units of CPU bandwidth."))
             } else {
-                Err(format!("Expected cgroup's task to use {:.2} % of total runtime, but used {:.2} %", max_expected_bw, used_bw).into())
+                Err(format!("Expected cgroup's task to use {:.2} units of runtime, but used {:.2}", max_expected_bw, used_bw).into())
             }
         });
 

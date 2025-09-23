@@ -125,7 +125,7 @@ The next step of this test suite is to configure cgroups as computed and to run 
 
 #### NOTES:
 
-The current analyzer software is closed source, so the tasksets for the tests are provided separately [here](). As a future *to-do*, the analyzer software will be rewritten to be open source.
+The current analyzer software is closed source, so the tasksets for the tests are provided separately [here](https://github.com/Yurand2000/HCBS-rust-initrd/releases). As a future *to-do*, the analyzer software will be rewritten to be open source.
 
 ### Extra Tools
 
