@@ -1,4 +1,4 @@
-# HCBS-Rust Initrd
+# HCBS-Test-Suite
 
 Rust-based tests for [Hierarchical Constant Bandwidth Server](https://github.com/Yurand2000/HCBS-patch)
 
@@ -125,7 +125,7 @@ The next step of this test suite is to configure cgroups as computed and to run 
 
 #### NOTES:
 
-The current analyzer software is closed source, so the tasksets for the tests are provided separately [here](https://github.com/Yurand2000/HCBS-rust-initrd/releases). As a future *to-do*, the analyzer software will be rewritten to be open source.
+The current analyzer software is closed source, so the tasksets for the tests are provided separately [here](https://github.com/Yurand2000/HCBS-Test-Suite/releases/tag/250924). As a future *to-do*, the analyzer software will be rewritten to be open source.
 
 ### Extra Tools
 
@@ -147,7 +147,7 @@ This project is licensed under the GNU General Public License v3 - see the [LICE
 
 ## 👤 Author
 
-**HCBS-Rust initrd** was developed by:
+**HCBS-Test-Suite** was developed by:
 - **Yuri Andriaccio** [yurand2000@gmail.com](mailto:yurand2000@gmail.com), [GitHub](https://github.com/Yurand2000).
 
 ## 📝 TODO - Future Work
@@ -158,4 +158,4 @@ This project is licensed under the GNU General Public License v3 - see the [LICE
 
 ---
 
-**HCBS-Rust initrd**
+**HCBS-Test-Suite**
