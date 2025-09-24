@@ -7,8 +7,9 @@ class OutputOptions:
         self.out_folder = out_folder
 
 class ConfigGenOptions:
-    def __init__(self, period_minmax: tuple[int, int], period_step: int | None):
+    def __init__(self, period_minmax: tuple[int, int], period_step: int | None, max_bw: float | None):
         self.permin, self.permax = period_minmax
+        self.max_bw = max_bw
 
         if self.permin <= 0:
             print("Period minimum must be greater than 0", file=sys.stderr)
@@ -31,7 +32,6 @@ class ConfigGenOptions:
         if self.pergran < 1:
             print("Period granularity must be an integer greater than equal to 1", file=sys.stderr)
             exit(1)
-
 class TaskgenOptions:
     def __init__(self, num_tasksets_per_utilization: int, num_tasks_minmax: tuple[int, int], utilizations: list[float], period_minmax: tuple[int, int], period_step: int | None = None, seed: int = 0):
         self.num_tasksets_per_utilization = num_tasksets_per_utilization
@@ -185,7 +185,13 @@ def gen_configs(tasksets: list[Taskset], options: ConfigGenOptions) -> list[tupl
         taskset_id, config = future.result()
         print(f"Generated new config for taskset {taskset_id}/{len(out)}")
         if config is not None:
-            out[taskset_id][1].append(config)
+            if options.max_bw is None:
+                out[taskset_id][1].append(config)
+            else:
+                # Do not save configurations which exceed the maximum allowed bandwidth
+                bw = config.runtime / config.period
+                if bw <= options.max_bw:
+                    out[taskset_id][1].append(config)
         else:
             print(f"* Generation failed for taskset {taskset_id}")
 
@@ -273,6 +279,9 @@ def save_configs(tasksets: list[tuple[Taskset, list[Config]]], options: OutputOp
     import os
 
     for i, (taskset, configs) in enumerate(tasksets):
+        if len(configs) == 0:
+            continue
+
         name = taskset.name()
         path = f"{options.out_folder}/{name}"
         os.makedirs(path)
@@ -312,6 +321,7 @@ def parse_args() -> tuple[TaskgenOptions, ConfigGenOptions, OutputOptions]:
     parser.add_argument("-c", "--cgroup-period-min", default=20, type=int, help="default: 20")
     parser.add_argument("-C", "--cgroup-period-max", default=100, type=int, help="default: 100")
     parser.add_argument("--cgroup-period-step", default=40, type=int, help="default: 40")
+    parser.add_argument("--max-bw", default=0.9, type=float, help="default: 0.9")
     parser.add_argument("-R", "--seed", default=42, type=int, help="default: 42")
 
     parsed = parser.parse_args(sys.argv[1:])
@@ -328,6 +338,7 @@ def parse_args() -> tuple[TaskgenOptions, ConfigGenOptions, OutputOptions]:
     config_gen_options = ConfigGenOptions(
         (parsed.cgroup_period_min, parsed.cgroup_period_max),
         parsed.cgroup_period_step,
+        parsed.max_bw
     )
 
     output_options = OutputOptions(
