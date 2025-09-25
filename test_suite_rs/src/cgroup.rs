@@ -371,7 +371,6 @@ impl MyCgroup {
                 })?;
         }
 
-        __set_cgroup_runtime_us(&self.name, 0)?;
         delete_cgroup(&self.name)
     }
 }
