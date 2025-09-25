@@ -19,10 +19,48 @@ pub struct MyArgs {
     pub max_time: Option<u64>
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
+
+    let cpus = num_cpus::get();
+    let cgroup_expected_bw = cpus as f64 * args.runtime_ms as f64 / args.period_ms as f64;
+    let fifo_expected_bw = cpus as f64 - cgroup_expected_bw;
+    let error = 0.01f64; // 1% error
+
+    let test_header =
+        if is_batch_test() {
+            "sched_fifo"
+        } else {
+            "sched_fifo (Ctrl+C to stop)"
+        };
+
+    batch_test_header(test_header, "regression");
+
+    let result = main(args, ctrlc_flag)
+        .and_then(|(fifo_bw, cgroup_bw)| {
+            if f64::abs(cgroup_bw - cgroup_expected_bw) >= error {
+                return Err(format!("Expected cgroup tasks to use {:.2} units of total runtime, but used {:.2} units", cgroup_expected_bw, cgroup_bw).into());
+            }
+
+            if f64::abs(fifo_bw - fifo_expected_bw) >= error {
+                return Err(format!("Expected SCHED_FIFO tasks to use {:.2} units of total runtime, but used {:.2} units", fifo_expected_bw, fifo_bw).into());
+            }
+
+            Ok(format!("Cgroup processes got {:.2} units of total runtime, while SCHED_FIFO processes got {:.2} units of total runtime ", cgroup_bw, fifo_bw))
+        });
+
+    if is_batch_test() {
+        batch_test_result(result)
+    } else {
+        batch_test_result_details(result)
+    }
+}
+
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(f64, f64), Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, false)?;
-    let bandwidth = args.runtime_ms as f64 / args.period_ms as f64;
 
     migrate_task_to_cgroup(".", std::process::id())?;
     let fifo_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
@@ -39,19 +77,16 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
                 .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
         })?;
 
-    if !is_batch_test() {
-        println!("Press Ctrl+C to stop");
-    }
-
     wait_loop(args.max_time, ctrlc_flag)?;
 
-    let mut total_usage = 0f64;
-    for proc in cgroup_processes.iter() {
-        total_usage += get_process_total_cpu_usage(proc.id())?;
+    let mut fifo_total_usage = 0f64;
+    for proc in fifo_processes.iter() {
+        fifo_total_usage += get_process_total_cpu_usage(proc.id())?;
     }
 
-    if !is_batch_test() {
-        println!("Cgroup processes used an average of {total_usage} units of CPU bandwidth.");
+    let mut cgroup_total_usage = 0f64;
+    for proc in cgroup_processes.iter() {
+        cgroup_total_usage += get_process_total_cpu_usage(proc.id())?;
     }
 
     fifo_processes.into_iter()
@@ -62,10 +97,5 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
 
     cgroup.destroy()?;
 
-    let per_cpu_usage = total_usage / cpus as f64;
-    if per_cpu_usage < bandwidth {
-        Err(format!("Expected a consumption of at least {bandwidth:.2} per-CPU for cgroup's tasks, but got {per_cpu_usage:.2} per-CPU"))?;
-    }
-
-    Ok(total_usage)
+    Ok((fifo_total_usage, cgroup_total_usage))
 }
