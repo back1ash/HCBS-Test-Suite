@@ -52,13 +52,17 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
     batch_test_header(&test_header, "time");
 
     let result = main(args, ctrlc_flag)
-        .and_then(|used_bw| { used_bw.map(|used_bw|
-            if f64::abs(used_bw - max_expected_bw) < max_error {
-                Ok(format!("Processes used an average of {used_bw:.5} units of CPU bandwidth."))
-            } else {
-                Err(format!("Expected cgroup's task to use {:.2} units of runtime, but used {:.2}", max_expected_bw, used_bw).into())
+        .and_then(|used_bw| { 
+            match used_bw {
+                Skippable::Result(used_bw) => 
+                    if f64::abs(used_bw - max_expected_bw) < max_error {
+                        Ok(Skippable::Result(format!("Processes used an average of {used_bw:.5} units of CPU bandwidth.")))
+                    } else {
+                        Err(format!("Expected cgroup's task to use {:.2} units of runtime, but used {:.2}", max_expected_bw, used_bw).into())
+                    },
+                Skippable::Skipped(err) => Ok(Skippable::Skipped(err)),
             }
-        ) });
+        });
 
     if is_batch_test() {
         batch_test_result_skippable(result)
@@ -67,7 +71,7 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
     }
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<Skippable<f64>, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<Skippable<f64, Box<dyn std::error::Error>>, Box<dyn std::error::Error>> {
     // check if the cpu_set is valid
     let cpu_set = args.cpu_set
         .map(|cpu_set| Into::<Result<CpuSet, CpuSetBuildError>>::into(cpu_set))
@@ -75,8 +79,8 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<Skippable<f64>
 
     let cpu_set =
         match cpu_set {
-            Err(CpuSetBuildError::UnavailableCPU(cpu)) =>
-                { return Ok(Err(format!("Unavailable CPU: {cpu}").into())); },
+            Err(err @ CpuSetBuildError::UnavailableCPU(_)) =>
+                { return Ok(Skippable::Skipped(err.into())); },
             Ok(cpu_set) => cpu_set,
             Err(err) =>
                 { return Err(err.into()); },
@@ -115,5 +119,5 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<Skippable<f64>
     migrate_task_to_cgroup(".", std::process::id())?;
     cgroup.destroy()?;
 
-    Ok(Ok(total_usage))
+    Ok(Skippable::Result(total_usage))
 }

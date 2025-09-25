@@ -204,10 +204,10 @@ pub fn batch_test_result<T>(result: Result<T, Box<dyn std::error::Error>>) -> Re
     }
 }
 
-pub fn batch_test_result_skippable<T>(result: Result<Skippable<T>, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn batch_test_result_skippable<T>(result: Result<Skippable<T, Box<dyn std::error::Error>>, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
     match &result {
-        Ok(Ok(_)) => batch_test_success(),
-        Ok(Err(err)) => batch_test_skipped(err),
+        Ok(Skippable::Result(_)) => batch_test_success(),
+        Ok(Skippable::Skipped(err)) => batch_test_skipped(err),
         Err(err) => batch_test_failure(err),
     };
 
@@ -231,10 +231,10 @@ pub fn batch_test_result_details<T: std::fmt::Display>(result: Result<T, Box<dyn
     }
 }
 
-pub fn batch_test_result_skippable_details<T: std::fmt::Display>(result: Result<Skippable<T>, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn batch_test_result_skippable_details<T: std::fmt::Display>(result: Result<Skippable<T, Box<dyn std::error::Error>>, Box<dyn std::error::Error>>) -> Result<(), Box<dyn std::error::Error>> {
     match &result {
-        Ok(Ok(msg)) => batch_test_success_details(msg),
-        Ok(Err(err)) => batch_test_skipped(err),
+        Ok(Skippable::Result(msg)) => batch_test_success_details(msg),
+        Ok(Skippable::Skipped(err)) => batch_test_skipped(err),
         Err(err) => batch_test_failure(err),
     };
 
@@ -275,4 +275,16 @@ pub fn get_fair_server_avg_bw() -> Result<f64, Box<dyn std::error::Error>> {
     Ok(avg_bw / num_cpus)
 }
 
-pub type Skippable<T> = Result<T, Box<dyn std::error::Error>>;
+pub enum Skippable<T, E> {
+    Result(T),
+    Skipped(E)
+}
+
+impl<T, E> Into<Result<T, E>> for Skippable<T, E> {
+    fn into(self) -> Result<T, E> {
+        match self {
+            Skippable::Result(ok) => Ok(ok),
+            Skippable::Skipped(err) => Err(err),
+        }
+    }
+}
