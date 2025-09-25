@@ -86,6 +86,7 @@ pub struct PeriodicTaskData {
 #[derive(Clone)]
 pub struct PeriodicThreadData {
     pub start_priority: u64,
+    pub cpu_speed: Option<u64>,
     pub tasks: Vec<PeriodicTaskData>,
     pub num_instances_per_job: u64,
     pub extra_args: String,
@@ -131,6 +132,10 @@ pub fn run_periodic_thread(args: PeriodicThreadData) -> Result<MyProcess, Box<dy
     for (prio, task) in (1..=args.start_priority).rev().zip(args.tasks.iter()) {
         cmd_str += &format!(" -C {0} -p {1} -P {2}", task.runtime_ms * 1000, task.period_ms * 1000, prio);
         num_tasks += 1;
+    }
+
+    if args.cpu_speed.is_some() {
+        cmd_str += &format!(" -R {0}", args.cpu_speed.unwrap());
     }
 
     cmd_str += &format!(" {0} -N {1} -n {2}", args.extra_args, args.num_instances_per_job, num_tasks);

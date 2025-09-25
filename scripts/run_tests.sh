@@ -33,12 +33,27 @@ constraints() {
 
 time_tests() {
     echo "* Time Tests *"
-    BATCH_TEST_CUSTOM_NAME="one-task" \
-        ./test_suite_v2/time many -r 10 -p 100 -t 10
     BATCH_TEST_CUSTOM_NAME="one-task-one-cpu" \
-        ./test_suite_v2/time many -r 10 -p 100 --cpu-set 0 -t 10
-    BATCH_TEST_CUSTOM_NAME="five-tasks" \
-        ./test_suite_v2/time many -n 5 -r 10 -p 100 -t 10
+        ./test_suite_v2/time many -r 40 -p 100 --cpu-set 0 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task-two-cpus" \
+        ./test_suite_v2/time many -r 30 -p 100 --cpu-set 0-1 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task-four-cpus" \
+        ./test_suite_v2/time many -r 20 -p 100 --cpu-set 0-3 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task-eight-cpus" \
+        ./test_suite_v2/time many -r 10 -p 100 --cpu-set 0-7 -t 10
+    BATCH_TEST_CUSTOM_NAME="one-task-all-cpus" \
+        ./test_suite_v2/time many -r 5 -p 100 -t 10
+
+    BATCH_TEST_CUSTOM_NAME="five-tasks-one-cpu" \
+        ./test_suite_v2/time many -n 5 -r 40 -p 100 --cpu-set 0 -t 10
+    BATCH_TEST_CUSTOM_NAME="five-tasks-two-cpus" \
+        ./test_suite_v2/time many -n 5 -r 30 -p 100 --cpu-set 0-1 -t 10
+    BATCH_TEST_CUSTOM_NAME="five-tasks-four-cpus" \
+        ./test_suite_v2/time many -n 5 -r 20 -p 100 --cpu-set 0-3 -t 10
+    BATCH_TEST_CUSTOM_NAME="five-tasks-eight-cpus" \
+        ./test_suite_v2/time many -n 5 -r 10 -p 100 --cpu-set 0-7 -t 10
+    BATCH_TEST_CUSTOM_NAME="five-tasks-all-cpus" \
+        ./test_suite_v2/time many -n 5 -r 5 -p 100 -t 10
 }
 
 known_regression() {

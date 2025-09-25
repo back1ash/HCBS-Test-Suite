@@ -219,6 +219,12 @@ pub fn delete_cgroup(name: &str) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    // Try to give the kernel some time to cleanup the system as this will
+    // sometimes fail even if all the processes have been killed
+    if __cgroup_num_procs(name)? > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
     if __cgroup_num_procs(name)? > 0 {
         let procs = get_cgroup_pids(name)?;
         __println_debug(|| format!("Cgroup {name} has active processes: {procs:?}"));

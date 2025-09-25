@@ -127,7 +127,7 @@ fn __path_to_str(path: &std::path::Path) -> Result<String, Box<dyn std::error::E
     __os_str_to_str(path.to_path_buf().as_os_str()) 
 }
 
-fn run_taskset(run: TasksetRun, args: &MyArgs)
+fn run_taskset(run: TasksetRun, args: &MyArgs, cycles: Option<u64>)
     -> Result<TasksetRunResult, Box<dyn std::error::Error>>
 {
     if run.config.num_cpus > args.max_num_cpus {
@@ -166,6 +166,7 @@ fn run_taskset(run: TasksetRun, args: &MyArgs)
 
     let pthread_data = PeriodicThreadData {
         start_priority: 98,
+        cpu_speed: cycles,
         tasks: run.tasks.data.clone(),
         extra_args: String::new(),
         out_file: tmp_output_file.to_owned(),
@@ -345,7 +346,41 @@ fn check_root_cgroups(args: &MyArgs) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
+fn compute_cpu_speed() -> Result<u64, Box<dyn std::error::Error>> {
+    let out_file = format!("/tmp/calibration_data.txt");
+
+    // run periodic thread to calibrate
+    migrate_task_to_cgroup(".", std::process::id())?;
+    set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
+    set_cpuset_to_pid(std::process::id(), &CpuSet::any_subset(1)?)?;
+
+    let mut proc = run_periodic_thread(PeriodicThreadData {
+        start_priority: 99,
+        cpu_speed: None,
+        tasks: vec![ PeriodicTaskData { runtime_ms: 10, period_ms: 100 }],
+        num_instances_per_job: 1,
+        extra_args: String::with_capacity(0),
+        out_file: out_file.clone(),
+    })?;
+    proc.wait()?;
+    
+    set_cpuset_to_pid(std::process::id(), &CpuSet::all()?)?;
+    set_scheduler(std::process::id(), SchedPolicy::other())?;
+
+    // read calibration results
+    let out_data = std::fs::read_to_string(out_file)?;
+    out_data.lines().find(|line| line.starts_with("#Cycles:"))
+        .ok_or(format!("Calibration error: Cycles measuring not found").into())
+        .and_then(|line| {
+            line.trim_ascii().split_ascii_whitespace().skip(1).next()
+                .ok_or(format!("Calibration error: Cycles measuring not found [2]").into())
+            .and_then(|cycles| cycles.parse::<u64>()
+                .map_err(|err| format!("Calibration error: {err}").into())
+            )
+        })
+}
+
+pub fn main_run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
     check_root_cgroups(&args.args)?;
 
     // run tasksets
@@ -374,50 +409,24 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
         println!("          Delete the folder '{}' to rerun all tests", args.output_dir);
     }
 
+    // pre-compute the number of cycles per second the CPUs can do.
+    let cycles = compute_cpu_speed()?;
+    println!("  [debug] Calibration results: {} cycles", cycles);
+
     // run experiments
     let mut failures = 0u64;
     let mut results = Vec::with_capacity(taskset_runs.len());
     for run in taskset_runs.into_iter() {
-        let already_run = std::path::Path::new(&run.output_file).exists();
+        match run_taskset_single(run, Some(cycles), &args.args)? {
+            Some(result) => {
+                if compute_result_insights(&result).num_overruns > 0 {
+                    failures += 1;
+                }
 
-        let insights = compute_insights(&run, &args.args);
-        let taskset_header = format!("{} on {}", run.tasks.name, run.config.name);
-        let taskset_header =
-            if already_run {
-                taskset_header + " (already run)"
-            } else {
-                taskset_header + &format!(" (~{:.2} secs)", insights.expected_runtime_us as f64 / 1000_000f64)
-            };
-        batch_test_header(&taskset_header, "taskset");
-
-        if !can_run_taskset(&run, &args.args) {
-            batch_test_skipped("cannot run on current config");
-            continue;
+                results.push(result);
+            },
+            None => continue,
         }
-
-        let result =
-            if already_run {
-                Ok(TasksetRunResult {
-                    taskset: run.tasks,
-                    config: run.config,
-                    results: parse_taskset_results(&run.output_file)?,
-                })
-            } else {
-                run_taskset(run, &args.args)
-            }?;
-
-        let insights = compute_result_insights(&result);
-
-        if insights.num_overruns > 0 {
-            batch_test_failure(format!("Deadline overrun: {:.2} % error rate, {} worst overrun",
-                insights.overruns_ratio * 100f64, insights.worst_overrun));
-
-            failures += 1;
-        } else {
-            batch_test_success();
-        }
-
-        results.push(result);
     }
 
     println!("[taskset] Taskset Tests ");
@@ -427,33 +436,60 @@ pub fn run_taskset_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error
     Ok(MyResult { results })
 }
 
-pub fn run_taskset_single(args: MyArgsSpecific) -> Result<TasksetRunResult, Box<dyn std::error::Error>> {
+pub fn main_run_taskset_single(args: MyArgsSpecific) -> Result<Option<TasksetRunResult>, Box<dyn std::error::Error>> {
     check_root_cgroups(&args.args)?;
 
+    println!("[taskset] Taskset Single Test ");
+
+    let cycles = compute_cpu_speed()?;
+    println!("  [debug] Calibration results: {} cycles", cycles);
+
     let run = get_taskset_run(&args.taskset, &args.config, &args.output)?;
+    Ok(run_taskset_single(run, Some(cycles), &args.args)?)
+}
+
+fn run_taskset_single(run: TasksetRun, cycles: Option<u64>, args: &MyArgs) -> Result<Option<TasksetRunResult>, Box<dyn std::error::Error>> {
+    let already_run = std::path::Path::new(&run.output_file).exists();
+
+    let insights = compute_insights(&run, &args);
+    let taskset_header = format!("{} on {}", run.tasks.name, run.config.name);
+    let taskset_header =
+        if already_run {
+            taskset_header + " (already run)"
+        } else {
+            taskset_header + &format!(" (~{:.2} secs)", insights.expected_runtime_us as f64 / 1000_000f64)
+        };
+    batch_test_header(&taskset_header, "taskset");
+
+    if !can_run_taskset(&run, &args) {
+        batch_test_skipped("cannot run on current config");
+        return Ok(None);
+    }
 
     let result =
-        if std::path::Path::new(&run.output_file).exists() {
-            println!("* Skipping taskset {}, config {}: already run",
-                run.tasks.name, run.config.name);
-
+        if already_run {
             Ok(TasksetRunResult {
                 taskset: run.tasks,
                 config: run.config,
                 results: parse_taskset_results(&run.output_file)?,
             })
         } else {
-            let insights = compute_insights(&run, &args.args);
-            println!("* Running taskset {}, config {}: expected runtime {:.2} secs",
-                run.tasks.name, run.config.name, insights.expected_runtime_us as f64 / 1000_000f64);
-
-            run_taskset(run, &args.args)
+            run_taskset(run, &args, cycles)
         }?;
 
-    Ok(result)
+    let insights = compute_result_insights(&result);
+
+    if insights.num_overruns > 0 {
+        batch_test_failure(format!("Deadline overrun: {:.2} % error rate, {} worst overrun",
+            insights.overruns_ratio * 100f64, insights.worst_overrun));
+    } else {
+        batch_test_success();
+    }
+
+    Ok(Some(result))
 }
 
-pub fn read_results_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
+pub fn main_read_results_array(args: MyArgsAll) -> Result<MyResult, Box<dyn std::error::Error>> {
     let taskset_runs = get_tasksets_runs(&args)?;
 
     // taskset first insights

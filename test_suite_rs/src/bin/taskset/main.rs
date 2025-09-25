@@ -22,9 +22,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Command as clap::Parser>::parse();
     
     match args {
-        Command::All(args) => { run_taskset_array(args)?; },
-        Command::Single(args) => { run_taskset_single(args)?; },
-        Command::ReadResults(args) => { read_results_array(args)?; },
+        Command::All(args) => { main_run_taskset_array(args)?; },
+        Command::Single(args) => { main_run_taskset_single(args)?; },
+        Command::ReadResults(args) => { main_read_results_array(args)?; },
     };
 
     Ok(())

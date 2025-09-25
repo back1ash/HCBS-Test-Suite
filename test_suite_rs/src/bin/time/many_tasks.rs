@@ -19,8 +19,8 @@ pub struct MyArgs {
     pub num_tasks: u64,
 
     /// task's allowed cpus
-    #[arg(long = "cpu-set", value_parser = <CpuSet as std::str::FromStr>::from_str)]
-    pub cpu_set: Option<CpuSet>,
+    #[arg(long = "cpu-set", value_parser = <CpuSetUnchecked as std::str::FromStr>::from_str)]
+    pub cpu_set: Option<CpuSetUnchecked>,
 
     /// max running time
     #[arg(short = 't', long = "max-time", value_name = "sec: u64")]
@@ -38,50 +38,65 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
 
     let total_cgroup_bw = single_bw * num_cpus as f64;
     let max_expected_bw = f64::min(total_cgroup_bw, args.num_tasks as f64);
-    let max_error = 0.025;
+    let max_error = 0.01;
 
     let test_header = format!("time c{} n{} r{} p{} set{:?}",
         args.cgroup, args.num_tasks, args.runtime_ms, args.period_ms, args.cpu_set);
     let test_header =
         if is_batch_test() {
-            test_header 
+            test_header
         } else {
             test_header + " (Ctrl+C to stop)"
         };
 
     batch_test_header(&test_header, "time");
-    
+
     let result = main(args, ctrlc_flag)
-        .and_then(|used_bw| {
+        .and_then(|used_bw| { used_bw.map(|used_bw|
             if f64::abs(used_bw - max_expected_bw) < max_error {
                 Ok(format!("Processes used an average of {used_bw:.5} units of CPU bandwidth."))
             } else {
                 Err(format!("Expected cgroup's task to use {:.2} units of runtime, but used {:.2}", max_expected_bw, used_bw).into())
             }
-        });
+        ) });
 
     if is_batch_test() {
-        batch_test_result(result)
+        batch_test_result_skippable(result)
     } else {
-        batch_test_result_details(result)
+        batch_test_result_skippable_details(result)
     }
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<Skippable<f64>, Box<dyn std::error::Error>> {
+    // check if the cpu_set is valid
+    let cpu_set = args.cpu_set
+        .map(|cpu_set| Into::<Result<CpuSet, CpuSetBuildError>>::into(cpu_set))
+        .transpose();
+
+    let cpu_set =
+        match cpu_set {
+            Err(CpuSetBuildError::UnavailableCPU(cpu)) =>
+                { return Ok(Err(format!("Unavailable CPU: {cpu}").into())); },
+            Ok(cpu_set) => cpu_set,
+            Err(err) =>
+                { return Err(err.into()); },
+        };
+
+    // run the tasks
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, true)?;
 
     migrate_task_to_cgroup(&args.cgroup, std::process::id())?;
 
     let procs: Vec<_> = (0..args.num_tasks)
         .map(|_| run_yes()).try_collect()?;
-    
+
     set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
     procs.iter()
         .try_for_each(|proc| {
             migrate_task_to_cgroup(&args.cgroup, proc.id())?;
             set_scheduler(proc.id(), SchedPolicy::RR(50))?;
-            if args.cpu_set.is_some() {
-                set_cpuset_to_pid(proc.id(), args.cpu_set.as_ref().unwrap())?;
+            if cpu_set.is_some() {
+                set_cpuset_to_pid(proc.id(), cpu_set.as_ref().unwrap())?;
             }
 
             Ok::<_, Box<dyn std::error::Error>>(())
@@ -89,7 +104,7 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
 
     wait_loop(args.max_time, ctrlc_flag)?;
 
-    let total_usage = 
+    let total_usage =
         procs.iter()
             .try_fold(0f64, |sum, proc| Ok::<f64, String>(sum + get_process_total_cpu_usage(proc.id())?))?;
 
@@ -100,5 +115,5 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
     migrate_task_to_cgroup(".", std::process::id())?;
     cgroup.destroy()?;
 
-    Ok(total_usage)
+    Ok(Ok(total_usage))
 }
