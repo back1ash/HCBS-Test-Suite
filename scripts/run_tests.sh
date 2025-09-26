@@ -7,12 +7,13 @@ print_help() {
     echo "Available Test Suites:"
     echo "-   all (or no argument) : run all test suites"
     echo "-            constraints : run constraints tests"
-    echo "-                   time : run time tests (~30s runtime)"
-    echo "-       known-regression : run known regression tests (~11m runtime)"
+    echo "-                   time : run time tests (~100s runtime)"
+    echo "-             regression : run regression tests (~17m runtime)"
     echo ""
     echo "-                   full : run all test suites + excluded ones"
-    echo "-          random-stress : run randomly generated stress tests (not included in all, ~1h runtime)"
-    echo "-               tasksets : run taskset tests (not included in all)"
+    echo "- ---------------------- : excluded tests from the all command -------------"
+    echo "-          random-stress : run randomly generated stress tests (~1h runtime)"
+    echo "-               tasksets : run taskset tests"
 }
 
 setup() {
@@ -56,7 +57,7 @@ time_tests() {
         ./test_suite_v2/time many -n 5 -r 5 -p 100 -t 10
 }
 
-known_regression() {
+regression() {
     echo "* Known Regression Tests *"
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fair-server -t 60
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fifo -r 10 -p 100 -t 60
@@ -92,13 +93,13 @@ if [ $TEST_SUITE = "all" ]; then
     setup
     constraints
     time_tests
-    known_regression
+    regression
 elif [ $TEST_SUITE = "full" ]; then
     echo "*** Running all tests + excluded ones ***"
     setup
     constraints
     time_tests
-    known_regression
+    regression
     random_stress
     tasksets
 elif [ $TEST_SUITE = "help" ] || [ $TEST_SUITE = "-h" ] || [ $TEST_SUITE = "--help" ]; then
@@ -109,9 +110,9 @@ elif [ $TEST_SUITE = "constraints" ]; then
 elif [ $TEST_SUITE = "time" ]; then
     setup
     time_tests
-elif [ $TEST_SUITE = "known-regression" ]; then
+elif [ $TEST_SUITE = "regression" ]; then
     setup
-    known_regression
+    regression
 elif [ $TEST_SUITE = "random-stress" ]; then
     setup
     random_stress
