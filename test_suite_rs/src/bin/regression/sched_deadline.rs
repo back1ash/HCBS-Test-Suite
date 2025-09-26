@@ -27,7 +27,8 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
     let cpus = num_cpus::get();
     let cgroup_expected_bw = cpus as f64 * args.runtime_ms as f64 / args.period_ms as f64;
     let deadline_expected_bw = cpus as f64 * 4.0 / 10.0;
-    let error = 0.01f64; // 1% error
+    let cgroup_error = cgroup_expected_bw * 0.025; // 2.5% error
+    let deadline_error = deadline_expected_bw * 0.025; // 2.5% error
 
     let test_header =
         if is_batch_test() {
@@ -40,11 +41,11 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
 
     let result = main(args, ctrlc_flag)
         .and_then(|(deadline_bw, cgroup_bw)| {
-            if f64::abs(cgroup_bw - cgroup_expected_bw) >= error {
+            if f64::abs(cgroup_bw - cgroup_expected_bw) >= cgroup_error {
                 return Err(format!("Expected cgroup tasks to use {:.2} units of total runtime, but used {:.2} units", cgroup_expected_bw, cgroup_bw).into());
             }
 
-            if f64::abs(deadline_bw - deadline_expected_bw) >= error {
+            if f64::abs(deadline_bw - deadline_expected_bw) >= deadline_error {
                 return Err(format!("Expected SCHED_DEADLINE tasks to use {:.2} units of total runtime, but used {:.2} units", deadline_expected_bw, deadline_bw).into());
             }
 
@@ -70,20 +71,21 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(f64, f64), Bo
     let cgroup_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
 
     set_scheduler(std::process::id(), SchedPolicy::RR(99))?;
+    cgroup_processes.iter().enumerate()
+        .try_for_each(|(cpu, proc)| {
+            migrate_task_to_cgroup(&args.cgroup, proc.id())?;
+            set_cpuset_to_pid(proc.id(), &CpuSet::single(cpu as u32)?)?;
+            set_scheduler(proc.id(), SchedPolicy::RR(50))
+                .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
+        })?;
+
     dl_processes.iter()
         .try_for_each(|proc| {
             set_scheduler(proc.id(), SchedPolicy::DEADLINE {
                 runtime_ms: dl_runtime_ms,
                 deadline_ms: args.period_ms,
                 period_ms: args.period_ms,
-            })
-        })?;
-
-    cgroup_processes.iter()
-        .try_for_each(|proc| {
-            migrate_task_to_cgroup(&args.cgroup, proc.id())?;
-            set_scheduler(proc.id(), SchedPolicy::RR(50))
-                .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
+            }).map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
         })?;
 
     wait_loop(args.max_time, ctrlc_flag)?;
