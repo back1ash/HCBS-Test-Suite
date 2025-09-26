@@ -19,21 +19,51 @@ pub struct MyArgs {
     pub max_time: Option<u64>
 }
 
-fn reduce_cgroups_runtime() -> Result<(), Box<dyn std::error::Error>> {
-    use hcbs_test_suite::cgroup::*;
+pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Box<dyn std::error::Error>> {
+    if is_batch_test() && args.max_time.is_none() {
+        Err(format!("Batch testing requires a maximum running time"))?;
+    }
 
-    let rt_period = get_system_rt_period_us()?;
-    let rt_runtime = rt_period * 5 / 10;
-    __set_cgroup_runtime_us(".", rt_runtime)?;
-    Ok(())
+    let cpus = num_cpus::get();
+    let cgroup_expected_bw = cpus as f64 * args.runtime_ms as f64 / args.period_ms as f64;
+    let deadline_expected_bw = (cpus as f64 * 4.0) / (10.0 * args.period_ms as f64);
+    let error = 0.01f64; // 1% error
+
+    let test_header =
+        if is_batch_test() {
+            "sched_deadline"
+        } else {
+            "sched_deadline (Ctrl+C to stop)"
+        };
+
+    batch_test_header(test_header, "regression");
+
+    let result = main(args, ctrlc_flag)
+        .and_then(|(deadline_bw, cgroup_bw)| {
+            if f64::abs(cgroup_bw - cgroup_expected_bw) >= error {
+                return Err(format!("Expected cgroup tasks to use {:.2} units of total runtime, but used {:.2} units", cgroup_expected_bw, cgroup_bw).into());
+            }
+
+            if f64::abs(deadline_bw - deadline_expected_bw) >= error {
+                return Err(format!("Expected SCHED_DEADLINE tasks to use {:.2} units of total runtime, but used {:.2} units", deadline_expected_bw, deadline_bw).into());
+            }
+
+            Ok(format!("Cgroup processes got {:.2} units of total runtime, while SCHED_DEADLINE processes got {:.2} units of total runtime ", cgroup_bw, deadline_bw))
+        });
+
+    if is_batch_test() {
+        batch_test_result(result)
+    } else {
+        batch_test_result_details(result)
+    }
 }
 
-pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn std::error::Error>> {
+pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(f64, f64), Box<dyn std::error::Error>> {
+    let rt_cgroup_runtime_orig = reduce_cgroups_runtime()?;
+
     let cpus = num_cpus::get();
     let cgroup = MyCgroup::new(&args.cgroup, args.runtime_ms * 1000, args.period_ms * 1000, false)?;
-    reduce_cgroups_runtime()?;
-    let bandwidth = args.runtime_ms as f64 / args.period_ms as f64;
-    let dl_runtime_ms = args.period_ms * 40 / 100;
+    let dl_runtime_ms = args.period_ms * 4 / 10;
 
     migrate_task_to_cgroup(".", std::process::id())?;
     let dl_processes: Vec<_> = (0..cpus).map(|_| run_yes()).try_collect()?;
@@ -56,19 +86,16 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
                 .map_err(|err| Into::<Box<dyn std::error::Error>>::into(err))
         })?;
 
-    if !is_batch_test() {
-        println!("Press Ctrl+C to stop");
-    }
-
     wait_loop(args.max_time, ctrlc_flag)?;
 
-    let mut total_usage = 0f64;
+    let mut cgroup_total_usage = 0f64;
     for proc in cgroup_processes.iter() {
-        total_usage += get_process_total_cpu_usage(proc.id())?;
+        cgroup_total_usage += get_process_total_cpu_usage(proc.id())?;
     }
 
-    if !is_batch_test() {
-        println!("Cgroup processes used an average of {total_usage} units of CPU bandwidth.");
+    let mut deadline_total_usage = 0f64;
+    for proc in dl_processes.iter() {
+        deadline_total_usage += get_process_total_cpu_usage(proc.id())?;
     }
 
     dl_processes.into_iter()
@@ -79,10 +106,22 @@ pub fn main(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<f64, Box<dyn s
 
     cgroup.destroy()?;
 
-    let per_cpu_usage = total_usage / cpus as f64;
-    if per_cpu_usage < bandwidth {
-        Err(format!("Expected a consumption of at least {bandwidth:.2} per-CPU for cgroup's tasks, but got {per_cpu_usage:.2} per-CPU"))?;
-    }
+    restore_cgroups_runtime(rt_cgroup_runtime_orig)?;
 
-    Ok(total_usage)
+    Ok((deadline_total_usage, cgroup_total_usage))
+}
+
+fn reduce_cgroups_runtime() -> Result<u64, Box<dyn std::error::Error>> {
+    use hcbs_test_suite::cgroup::*;
+
+    let rt_runtime = get_cgroup_runtime_us(".")?;
+    let rt_period = get_cgroup_runtime_us(".")?;
+    __set_cgroup_runtime_us(".", rt_period * 5 / 10)?;
+    Ok(rt_runtime)
+}
+
+fn restore_cgroups_runtime(rt_runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
+    use hcbs_test_suite::cgroup::*;
+
+    __set_cgroup_runtime_us(".", rt_runtime_us)
 }

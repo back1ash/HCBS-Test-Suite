@@ -62,6 +62,9 @@ known_regression() {
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fifo -r 10 -p 100 -t 60
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fifo -r 50 -p 100 -t 60
     TESTBINDIR=test_suite_v2 ./test_suite_v2/regression fifo -r 90 -p 100 -t 60
+    TESTBINDIR=test_suite_v2 ./test_suite_v2/regression deadline -r 10 -p 100 -t 60
+    TESTBINDIR=test_suite_v2 ./test_suite_v2/regression deadline -r 20 -p 100 -t 60
+    TESTBINDIR=test_suite_v2 ./test_suite_v2/regression deadline -r 30 -p 100 -t 60
     BATCH_TEST_CUSTOM_NAME="migration-regression" \
         ./test_suite_v2/stress task-migration -r 1 -p 100 -P 0.1 -t 300
     BATCH_TEST_CUSTOM_NAME="affinity-regression" \

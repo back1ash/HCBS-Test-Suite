@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match args {
         All(args) => run_all::main(args, None),
         FairServer(args) => fair_server::batch_runner(args, None).map(|_| ()),
-        SchedDeadline(args) => sched_deadline::main(args, None).map(|_| ()),
+        SchedDeadline(args) => sched_deadline::batch_runner(args, None).map(|_| ()),
         SchedFifo(args) => sched_fifo::batch_runner(args, None).map(|_| ()),
     }
 }
