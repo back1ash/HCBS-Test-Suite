@@ -1,21 +1,12 @@
 #![feature(iterator_try_collect)]
 
 mod fair_server;
-mod run_all;
 mod sched_deadline;
 mod sched_fifo;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
 pub enum Command {
-    /// Run all tests
-    ///
-    /// This command runs all the listed tests. It generates pseudo-random
-    /// parameters for each of these tests and chooses which to run at random,
-    /// totalling to a user specified amount of tests.
-    #[command(name = "all", verbatim_doc_comment)]
-    All(run_all::MyArgs),
-
     /// Stress test the fair deadline servers
     ///
     /// This test creates a set of SCHED_FIFO and SCHED_OTHER cpu-bound tasks,
@@ -54,7 +45,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use Command::*;
 
     match args {
-        All(args) => run_all::main(args, None),
         FairServer(args) => fair_server::batch_runner(args, None).map(|_| ()),
         SchedDeadline(args) => sched_deadline::batch_runner(args, None).map(|_| ()),
         SchedFifo(args) => sched_fifo::batch_runner(args, None).map(|_| ()),
