@@ -37,6 +37,8 @@ pub enum SchedPolicyError {
 
 impl std::fmt::Display for SchedPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Policy change error: ")?;
+
         match self {
             SchedPolicyError::SyscallError(error)
                 => write!(f, "Syscall error: {error}"),
@@ -83,7 +85,7 @@ impl Into<sched_attr> for SchedPolicy {
         } as u32;
 
         let sched_flags = match self {
-            SchedPolicy::DEADLINE { .. } => libc::SCHED_RESET_ON_FORK,
+            SchedPolicy::DEADLINE { .. } => libc::SCHED_FLAG_RESET_ON_FORK,
             _ => 0,
         } as u64;
 
@@ -99,10 +101,15 @@ impl Into<sched_attr> for SchedPolicy {
             _ => 0,
         } as u32;
 
+        const MILLI_TO_NANO: u64 = 1000_000;
         let (sched_runtime, sched_deadline, sched_period) =
             match self {
                 SchedPolicy::DEADLINE { runtime_ms, deadline_ms, period_ms }
-                    => (runtime_ms, deadline_ms, period_ms),
+                    => (
+                        runtime_ms * MILLI_TO_NANO,
+                        deadline_ms * MILLI_TO_NANO,
+                        period_ms * MILLI_TO_NANO
+                    ),
                 _ => (0, 0, 0),
             };
 
