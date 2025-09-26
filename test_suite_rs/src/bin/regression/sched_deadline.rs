@@ -26,7 +26,7 @@ pub fn batch_runner(args: MyArgs, ctrlc_flag: Option<ExitFlag>) -> Result<(), Bo
 
     let cpus = num_cpus::get();
     let cgroup_expected_bw = cpus as f64 * args.runtime_ms as f64 / args.period_ms as f64;
-    let deadline_expected_bw = (cpus as f64 * 4.0) / (10.0 * args.period_ms as f64);
+    let deadline_expected_bw = cpus as f64 * 4.0 / 10.0;
     let error = 0.01f64; // 1% error
 
     let test_header =
@@ -115,13 +115,15 @@ fn reduce_cgroups_runtime() -> Result<u64, Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::*;
 
     let rt_runtime = get_cgroup_runtime_us(".")?;
-    let rt_period = get_cgroup_runtime_us(".")?;
+    let rt_period = get_cgroup_period_us(".")?;
     __set_cgroup_runtime_us(".", rt_period * 5 / 10)?;
     Ok(rt_runtime)
 }
 
 fn restore_cgroups_runtime(rt_runtime_us: u64) -> Result<(), Box<dyn std::error::Error>> {
     use hcbs_test_suite::cgroup::*;
+
+    std::thread::sleep(std::time::Duration::from_millis(100));
 
     __set_cgroup_runtime_us(".", rt_runtime_us)
 }
