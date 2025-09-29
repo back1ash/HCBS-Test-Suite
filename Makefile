@@ -113,7 +113,7 @@ $(BUILD)/BuildCore/.keep: $(BUILD)/.keep
 
 $(BUILD)/initrd-busybox.gz: $(BUILD)/BuildCore/.keep
 	mkdir -p $(BUILD)/busybox
-	cd $(BUILD)/busybox && sh $(BUILD)/BuildCore/buildcore.sh $@
+	cd $(BUILD)/busybox && sh ../BuildCore/buildcore.sh $(abspath $@)
 
 ### compressed targets
 # initramfs
